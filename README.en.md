@@ -380,7 +380,7 @@ On GitHub the calculation test runs before every image build (`.github/workflows
 
 ## License and credits
 
-**License:** not yet decided.
+**License:** [MIT](LICENSE) – use, modify and share freely as long as the license notice is kept. No warranty: this is a hobby project, no liability for errors in amounts.
 
 Bundled fonts: **Inter** (The Inter Project Authors) and **Allerta Stencil** (Matt McInerney), both under the SIL Open Font License 1.1 – license texts in `static/fonts`.
 

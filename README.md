@@ -378,7 +378,7 @@ Auf GitHub läuft der Rechentest vor jedem Image-Bau (`.github/workflows/images.
 
 ## Lizenz und Danksagung
 
-**Lizenz:** noch nicht festgelegt.
+**Lizenz:** [MIT](LICENSE) – Nutzen, Verändern und Weitergeben ist erlaubt, solange der Lizenzhinweis erhalten bleibt. Ohne Gewähr: Die Kaffeekasse ist ein Hobbyprojekt, für Fehler bei Beträgen wird nicht gehaftet.
 
 Mitgelieferte Schriften: **Inter** (The Inter Project Authors) und **Allerta Stencil** (Matt McInerney), beide unter der SIL Open Font License 1.1 – Lizenztexte in `static/fonts`.
 
