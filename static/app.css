@@ -1179,3 +1179,14 @@ details summary{list-style-position:inside}
 .freigabe{border:1px solid var(--warn-line);background:var(--warn-bg);border-radius:var(--radius-sm);padding:12px;display:flex;flex-direction:column;gap:10px}
 .freigabe-kopf{display:flex;gap:10px;align-items:flex-start}
 .freigabe-kopf > span{font-size:20px;line-height:1}
+
+/* ☰-Menüs: in den Glas-Designs deckend, sonst scheint die Liste darunter durch */
+[data-stil="hangar"] .menu{background:rgba(30,34,38,.97);border-color:rgba(255,255,255,.2);
+  -webkit-backdrop-filter:blur(24px) saturate(140%);backdrop-filter:blur(24px) saturate(140%);box-shadow:0 18px 40px rgba(0,0,0,.55)}
+[data-stil="hangar"] .menu button:hover,[data-stil="hangar"] .menu button:focus-visible{background:rgba(255,255,255,.1)}
+[data-stil="dashboard"] .menu{background:color-mix(in srgb, var(--bg) 96%, transparent);
+  -webkit-backdrop-filter:blur(24px) saturate(180%);backdrop-filter:blur(24px) saturate(180%)}
+[data-stil="hangar"] .massen-tabelle th{background:rgba(30,34,38,.97)}
+[data-stil="dashboard"] .massen-tabelle th{background:var(--bg)}
+[data-stil="hangar"] .toast{background:rgba(30,34,38,.97);color:var(--text)}
+[data-stil="dashboard"] .toast{background:color-mix(in srgb, var(--bg) 96%, transparent)}
