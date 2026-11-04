@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#101319">
+<meta name="color-scheme" content="dark light">
+<script>
+/* Design vor dem ersten Zeichnen setzen: "auto" folgt dem Gerät, sonst hell/dunkel */
+(function(){
+  var t = "auto";
+  try{ t = localStorage.getItem("kaffeekasse.design") || "auto"; }catch(e){}
+  if (t === "hell") document.documentElement.setAttribute("data-theme","light");
+  if (t === "dunkel") document.documentElement.setAttribute("data-theme","dark");
+})();
+</script>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Kaffeekasse</title>
+<link rel="preload" href="/static/fonts/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/static/app.css">
+<link rel="icon" type="image/png" href="/static/favicon.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+</head>
+<body>
+
+<div id="boot">Lädt …</div>
+
+<!-- ============ LOGIN ============ -->
+<section id="view-login" class="view">
+  <div class="login-box">
+    <div class="login-kopf">
+      <div class="brand"><span class="brand-dot"></span> <span id="shopNameLogin">Kaffeekasse</span></div>
+      <button type="button" class="info-knopf" id="appInfoBtn" aria-label="Als App auf dem Handy speichern" title="Als App speichern">i</button>
+    </div>
+    <div class="shop-wahl" id="lShopBox" hidden>
+      <label class="label" for="lShop">Shop</label>
+      <select id="lShop" class="field shop-select"></select>
+    </div>
+    <div class="card" style="text-align:left">
+      <h1 style="margin-bottom:6px">Anmelden</h1>
+      <p class="muted" style="margin:0 0 18px">Mit deinem persönlichen Zugang. Der QR-Code am Kühlschrank öffnet nur diese Seite — er meldet dich nicht an.</p>
+      <label class="label" for="luser">Personalnummer</label>
+      <input id="luser" class="field mono" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="username"
+             autocorrect="off" spellcheck="false" placeholder="8 Ziffern">
+      <label class="label" for="lpass" id="lpassLabel" style="margin-top:12px">PIN</label>
+      <input id="lpass" class="field mono" type="password" inputmode="numeric" autocomplete="current-password" placeholder="4–8 Ziffern">
+      <label class="row small" style="margin-top:14px;gap:9px;cursor:pointer">
+        <input type="checkbox" id="lstay" style="width:17px;height:17px;accent-color:var(--green)">
+        <span>Auf diesem Gerät angemeldet bleiben <span class="muted">(nur eigenes Telefon)</span></span>
+      </label>
+      <button class="btn btn-primary btn-lg" id="loginBtn" style="width:100%;margin-top:16px">Anmelden</button>
+      <p class="muted small" style="margin:14px 0 0">Noch kein Zugang oder PIN vergessen? Konten legen nur die Shopverantwortlichen an — dort bekommst du auch eine neue Einmal-PIN.</p>
+    </div>
+    <p class="small" style="margin:16px 0 0"><button type="button" class="linkbtn-muted" id="lMode">Verwaltung: mit Passwort anmelden</button></p>
+    <p class="small" style="margin:6px 0 0"><button type="button" class="linkbtn-muted" id="dsLink">Datenschutz</button></p>
+    <div class="demo-cards" id="demoCards"></div>
+  </div>
+</section>
+
+<!-- ============ ERSTEINRICHTUNG ============ -->
+<section id="view-setup" class="view">
+  <div class="login-box" style="max-width:520px">
+    <div class="brand" style="justify-content:center;margin-bottom:18px"><span class="brand-dot"></span> <span>Kaffeekasse</span></div>
+    <div class="card" style="text-align:left">
+      <h1 style="margin-bottom:6px">Einrichtung</h1>
+      <p class="muted" style="margin:0 0 18px">Willkommen! Lege den Administrator-Zugang an. Das geht nur einmal – danach melden sich alle ganz normal an.</p>
+      <div class="stack">
+        <div class="grid-2">
+          <div><label class="label" for="suKasse">Name der Kaffeekasse</label><input id="suKasse" class="field" maxlength="40" placeholder="z. B. Kaffeekasse Werkstatt"></div>
+          <div><label class="label" for="suShop">Name des ersten Shops</label><input id="suShop" class="field" maxlength="40" placeholder="z. B. Halle 1"></div>
+        </div>
+        <p class="muted small" style="margin:-4px 0 0">Weitere Shops (Hallen) legst du danach unter Verwaltung → Shops an. Alle Bestände starten bei 0.</p>
+        <div id="suCodeBox" hidden><label class="label" for="suCode">Einrichtungs-Code <span class="muted">(aus der docker-compose.yml)</span></label>
+          <input id="suCode" class="field" autocomplete="off"></div>
+        <div class="grid-2">
+          <div><label class="label" for="suVorname">Vorname</label><input id="suVorname" class="field" autocomplete="given-name"></div>
+          <div><label class="label" for="suName">Nachname</label><input id="suName" class="field" autocomplete="family-name"></div>
+        </div>
+        <div class="grid-2">
+          <div><label class="label" for="suNr">Personalnummer</label><input id="suNr" class="field mono" inputmode="numeric" maxlength="8" placeholder="8 Ziffern" autocomplete="username"></div>
+          <div></div>
+        </div>
+        <div class="grid-2">
+          <div><label class="label" for="suPw">Passwort <span class="muted">(Verwaltung)</span></label><input id="suPw" class="field" type="password" autocomplete="new-password" placeholder="mind. 10 Zeichen"></div>
+          <div><label class="label" for="suPw2">Passwort wiederholen</label><input id="suPw2" class="field" type="password" autocomplete="new-password"></div>
+        </div>
+        <div class="grid-2">
+          <div><label class="label" for="suPin">PIN <span class="muted">(Einkaufen)</span></label><input id="suPin" class="field mono" type="password" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="4–8 Ziffern"></div>
+          <div><label class="label" for="suPin2">PIN wiederholen</label><input id="suPin2" class="field mono" type="password" inputmode="numeric" maxlength="8" autocomplete="off"></div>
+        </div>
+        <p class="muted small" style="margin:0">Mit der <b>PIN</b> meldest du dich zum Einkaufen an, mit dem <b>Passwort</b> kommst du zusätzlich in die Verwaltung.</p>
+        <button class="btn btn-primary btn-lg" id="suOk" style="width:100%">Kaffeekasse einrichten</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TOPBAR ============ -->
+<header class="topbar" id="topbar" hidden>
+  <div class="brand"><span class="brand-dot"></span> <span id="shopName">Kaffeekasse</span></div>
+  <div class="spacer"></div>
+  <div class="who">
+    <div style="text-align:right">
+      <div class="who-name" id="whoName">–</div>
+      <div class="who-sub num" id="whoSub">–</div>
+    </div>
+    <button class="btn btn-sm" id="adminBtn" hidden>Verwaltung</button>
+    <button class="btn btn-sm" id="kontoBtn">Konto</button>
+    <button class="btn btn-sm" id="logoutBtn">Abmelden</button>
+  </div>
+  <div class="timer-linie" id="timerBox" aria-hidden="true"><div class="timer-fill" id="timerFill"></div></div>
+</header>
+
+<!-- ============ SHOP ============ -->
+<section id="view-shop" class="view">
+  <div class="wrap">
+    <div id="debtBanner" hidden style="margin-bottom:18px"></div>
+    <div class="page-head">
+      <div style="min-width:0">
+        <div class="shop-kopf" id="shopSelBox" hidden>
+          <select id="shopSel" class="shop-select shop-select-klein" aria-label="Shop wählen"></select>
+        </div>
+        <div class="shop-name-fest" id="shopNameFest" hidden></div>
+        <h1>Was darf's sein?</h1>
+        <p class="muted" style="margin:4px 0 0">Tippe auf ein Produkt, um es in den Warenkorb zu legen.</p>
+      </div>
+      <div class="pill pill-green num" id="balancePill">Guthaben –</div>
+    </div>
+    <div id="wieImmer"></div>
+    <div class="cats" id="cats"></div>
+    <div class="grid" id="prodGrid"></div>
+  </div>
+  <button class="cart-fab" id="cartFab" hidden>
+    <span id="cartFabCount">0 Artikel</span>
+    <span class="num" id="cartFabSum">0,00 €</span>
+  </button>
+</section>
+
+<!-- ============ VERWALTUNG (Shopverantwortliche + Administrator) ============ -->
+<section id="view-admin" class="view">
+  <div class="wrap">
+    <div class="page-head"><div><h1>Verwaltung</h1><p class="muted" style="margin:4px 0 0" id="adminSub">–</p></div>
+      <div class="row">
+        <select id="adminShop" class="field shop-select" aria-label="Shop für Übersicht, Verkäufe und Sortiment"></select>
+        <button class="btn btn-primary" id="shopBtn">← Zum Einkauf</button>
+      </div></div>
+    <div class="tabs" data-tabs="admin">
+      <button class="tab" data-panel="t-ueber">Übersicht</button>
+      <button class="tab" data-panel="t-verk">Verkäufe</button>
+      <button class="tab" data-panel="t-sort">Sortiment</button>
+      <button class="tab" data-panel="t-mitgl">Mitglieder</button>
+      <button class="tab" data-panel="t-kasse">Kasse</button>
+      <button class="tab" data-panel="t-shops" data-owner="1">Shops</button>
+      <button class="tab" data-panel="t-einst">Einstellungen</button>
+    </div>
+
+    <!-- Übersicht -->
+    <div class="panel" id="t-ueber">
+      <div class="zeitraum" data-zr></div>
+      <div class="ueber-aktionen"><button class="btn" id="abschlussBtn">Monats-/Jahresabschluss drucken</button></div>
+      <div class="kpis" id="kpis"></div>
+      <div class="kpis kpis-klein" id="kpis2"></div>
+      <div id="lowStockBox"></div>
+      <div class="cols">
+        <div class="card"><h2 class="card-titel">Umsatz pro Tag</h2><div id="tagChart"></div></div>
+        <div class="card" id="shopVergleichBox"><h2 class="card-titel">Umsatz je Shop</h2><div id="shopVergleich"></div></div>
+        <div class="card"><h2 class="card-titel">Meistverkauft</h2><div id="bestsellers"></div></div>
+        <div class="card"><h2 class="card-titel">Umsatz nach Kategorie</h2><div id="catRevenue"></div></div>
+      </div>
+    </div>
+
+    <!-- Verkäufe -->
+    <div class="panel" id="t-verk">
+      <div class="zeitraum" data-zr></div>
+      <div class="toolbar">
+        <input id="vSuche" class="field such" type="search" placeholder="Mitglied, Personalnummer, Beleg oder Artikel">
+        <select id="vSort" class="field sortwahl" aria-label="Sortieren">
+          <option value="zeit-">Neueste zuerst</option>
+          <option value="zeit">Älteste zuerst</option>
+          <option value="summe-">Höchste Summe zuerst</option>
+          <option value="name">Mitglied A–Z</option>
+        </select>
+      </div>
+      <div class="filterzeile"><div class="cats" id="vFilter"></div><span class="muted small num" id="vAnzahl"></span></div>
+      <div id="vListe"></div>
+    </div>
+
+    <!-- Sortiment -->
+    <div class="panel" id="t-sort">
+      <div class="seg ort-umschalter" id="sortOrt" role="tablist" aria-label="Bestand anzeigen">
+        <button type="button" data-o="kuehlschrank">❄ Kühlschrank</button>
+        <button type="button" data-o="lager">▦ Lager</button>
+        <button type="button" data-o="gesamt">Σ Gesamt</button>
+      </div>
+      <div class="toolbar">
+        <input id="pSuche" class="field such" type="search" placeholder="Produkt suchen">
+        <select id="pSort" class="field sortwahl" aria-label="Sortieren">
+          <option value="reihe">Eigene Reihenfolge</option>
+          <option value="kat">Kategorie</option>
+          <option value="name">Name A–Z</option>
+          <option value="bestand">Bestand: niedrigster zuerst</option>
+          <option value="preis">Preis: niedrigster zuerst</option>
+          <option value="preis-">Preis: höchster zuerst</option>
+        </select>
+        <div class="toolbar-rechts">
+          <button class="btn" id="bestellBtn">Bestellvorschlag</button>
+          <button class="btn" id="reiheBtn">Reihenfolge</button>
+          <button class="btn" id="inventurBtn">Inventur</button>
+          <button class="btn btn-primary" id="newProdBtn">+ Neues Produkt</button>
+        </div>
+      </div>
+      <div class="filterzeile"><div class="cats" id="sortKats"></div><span class="muted small num" id="pAnzahl"></span></div>
+      <div id="prodListe"></div>
+    </div>
+
+    <!-- Mitglieder -->
+    <div class="panel" id="t-mitgl">
+      <div class="toolbar">
+        <input id="custSearch" class="field such" placeholder="Name, Personalnummer oder Rufnummer suchen" type="search">
+        <select id="custSort" class="field sortwahl" aria-label="Sortieren">
+          <option value="nachname">Nachname A–Z</option>
+          <option value="nachname-">Nachname Z–A</option>
+          <option value="vorname">Vorname A–Z</option>
+          <option value="nummer">Personalnummer</option>
+          <option value="tel">Interne Rufnummer</option>
+          <option value="guthaben">Guthaben: niedrigstes zuerst</option>
+          <option value="guthaben-">Guthaben: höchstes zuerst</option>
+        </select>
+        <div class="toolbar-rechts"><button class="btn" id="massenBtn">Mehrere anlegen</button><button class="btn btn-primary" id="neuKontoBtn">+ Neues Mitglied</button></div>
+      </div>
+      <div class="filterzeile"><div class="cats" id="rollenFilter"></div><span class="muted small num" id="mAnzahl"></span></div>
+      <div id="custList"></div>
+    </div>
+
+    <!-- Kasse (Bargeld) -->
+    <div class="panel" id="t-kasse">
+      <div class="zeitraum" data-zr></div>
+      <div class="kpis" id="kasseKpis"></div>
+      <div class="toolbar">
+        <input id="kSuche" class="field such" type="search" placeholder="Zweck, Beleg, Mitglied oder Kategorie suchen">
+        <select id="kSort" class="field sortwahl" aria-label="Sortieren">
+          <option value="neu">Neueste zuerst</option>
+          <option value="alt">Älteste zuerst</option>
+          <option value="betrag-">Größter Betrag zuerst</option>
+        </select>
+        <div class="toolbar-rechts">
+          <button class="btn" id="kPruefungBtn">Kassenprüfung</button>
+          <button class="btn" id="kEinlageBtn">Einlage</button>
+          <button class="btn btn-primary" id="kAusgabeBtn">− Geld ausbuchen</button>
+        </div>
+      </div>
+      <div class="filterzeile"><div class="cats" id="kFilter"></div><span class="muted small num" id="kAnzahl"></span></div>
+      <div id="kListe"></div>
+    </div>
+
+    <!-- Shops (Administrator) -->
+    <div class="panel" id="t-shops">
+      <div class="toolbar">
+        <input id="shSuche" class="field such" type="search" placeholder="Shop suchen">
+        <select id="shSort" class="field sortwahl" aria-label="Sortieren">
+          <option value="reihe">Reihenfolge</option>
+          <option value="name">Name A–Z</option>
+          <option value="umsatz-">Umsatz diesen Monat</option>
+        </select>
+        <div class="toolbar-rechts"><button class="btn" id="qrAlleBtn">QR-Codes drucken</button><button class="btn btn-primary" id="neuShopBtn">+ Neuer Shop</button></div>
+      </div>
+      <div class="filterzeile"><div class="cats" id="shFilter"></div><span class="muted small">Mitglieder und Guthaben gelten in allen Shops, der Katalog ist gemeinsam – Bestand und Verkäufe gehören zum Shop.</span></div>
+      <div id="shopListe"></div>
+    </div>
+
+    <!-- Einstellungen -->
+    <div class="panel" id="t-einst">
+      <div class="seg einst-seg" id="einstSeg">
+        <button data-e="allg" data-owner="1">Allgemein</button>
+        <button data-e="melde" data-owner="1">Benachrichtigungen</button>
+        <button data-e="export">Export</button>
+        <button data-e="sich">Sicherung &amp; Daten</button>
+        <button data-e="log">Protokoll</button>
+      </div>
+
+      <div class="einst" data-e="allg">
+        <div class="card">
+          <h2 class="card-titel">Allgemein</h2>
+          <p class="muted small" style="margin:-8px 0 14px">Gelten sofort für alle Geräte und Shops.</p>
+          <div class="settings-grid">
+            <div><label class="label" for="eShop">Name der Kaffeekasse</label><input id="eShop" class="field"></div>
+            <div><label class="label" for="eLimit">Schuldengrenze (€)</label><input id="eLimit" class="field num" type="number" step="1" min="0"></div>
+            <div><label class="label" for="eAuto">Abmeldung beim Einkauf nach (Sek.)</label><input id="eAuto" class="field num" type="number" step="30" min="30"></div>
+            <div><label class="label" for="eAutoT">Abmeldung in der Verwaltung nach (Sek.)</label><input id="eAutoT" class="field num" type="number" step="60" min="60"></div>
+            <div><label class="label" for="eMin">Nachfüllen ab Bestand</label><input id="eMin" class="field num" type="number" step="1" min="0"></div>
+            <div><label class="label" for="eAdr">Adresse (für Zugangszettel)</label><input id="eAdr" class="field"></div>
+            <div><label class="label" for="eWarn">Hinweis bei Guthaben unter (€, 0 = aus)</label><input id="eWarn" class="field num" type="number" step="1" min="0"></div>
+            <div><label class="label" for="eStil">Design der Kaffeekasse</label>
+              <select id="eStil" class="field"></select>
+              <p class="muted small" id="eStilHinweis" style="margin:6px 0 0">Gilt für alle Geräte. Beim Auswählen siehst du es sofort, gespeichert wird mit „Speichern“.</p></div>
+          </div>
+          <label class="label" for="eDsKontakt" style="margin-top:12px">Ansprechpartner für den Datenschutzhinweis</label>
+          <textarea id="eDsKontakt" class="field" rows="2" maxlength="500" placeholder="z. B. Name, Dienststelle, interne Rufnummer"></textarea>
+          <p class="muted small" style="margin:6px 0 0">Steht im Datenschutzhinweis (Link auf der Anmeldeseite und unten auf jeder Seite).</p>
+          <button class="btn btn-primary" id="eSave" style="margin-top:14px">Speichern</button>
+        </div>
+      </div>
+
+      <div class="einst" data-e="melde">
+        <div class="card">
+          <h2 class="card-titel">Nachfüll-Benachrichtigung</h2>
+          <p class="muted small" style="margin:-8px 0 14px">Sobald ein Produkt in einem Shop auf den Nachfüll-Bestand fällt (Einstellung „Nachfüllen ab Bestand“), gibt es eine Meldung – einmal pro Produkt, bis wieder aufgefüllt wurde.</p>
+          <div class="stack">
+            <div><label class="label" for="nUrl">Webhook-Adresse <span class="muted">(ntfy, Home Assistant, Gotify …)</span></label>
+              <input id="nUrl" class="field" inputmode="url" placeholder="z. B. http://192.168.1.10:8081/message?token=…"></div>
+            <div><label class="label">Format</label>
+              <div class="seg" id="nFormat"><button type="button" data-f="ntfy">ntfy</button><button type="button" data-f="gotify">Gotify</button><button type="button" data-f="json">JSON (Home Assistant)</button></div>
+              <p class="muted small" id="nFormatHinweis" style="margin:8px 0 0"></p></div>
+            <div class="row"><button class="btn btn-primary" id="nSave">Speichern</button><button class="btn" id="nTest">Testmeldung senden</button></div>
+            <div id="nErgebnis" class="small muted"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="einst" data-e="export">
+        <div class="card">
+          <h2 class="card-titel">Export</h2>
+          <p class="muted small" style="margin:-8px 0 14px">CSV-Dateien für Excel &amp; Co. Zeitraum und Shop gelten für Verkäufe, Kassenbuch, Lagerbuch und Protokoll.</p>
+          <div class="zeitraum" data-zr></div>
+          <div class="export-liste" id="exportListe"></div>
+        </div>
+      </div>
+
+      <div class="einst" data-e="sich">
+        <div class="cols">
+          <div class="card" data-owner="1">
+            <h2 class="card-titel">Sicherungen</h2>
+            <p class="muted small" style="margin:-8px 0 14px" id="sichInfo">–</p>
+            <div class="row" style="margin-bottom:14px">
+              <a class="btn" id="backupBtn" href="/api/sicherung">Jetzt herunterladen</a>
+              <button class="btn" id="backupServerBtn">Jetzt auf dem Server sichern</button>
+              <button class="btn" id="restoreBtn">Datei einlesen …</button>
+            </div>
+            <input type="file" id="restoreFile" accept="application/json,.json" hidden>
+            <div id="sichListe"></div>
+          </div>
+          <div class="card">
+            <h2 class="card-titel">Datenbank</h2>
+            <p class="muted small" style="margin:-8px 0 14px">Alle Daten liegen in einer SQLite-Datei im Docker-Volume. PINs und Passwörter sind nur als Hash gespeichert – niemand kann sie einsehen.</p>
+            <div id="folderView"></div>
+            <p class="muted small" style="margin:12px 0 0">Pfad: <span id="folderPath" class="num">–</span></p>
+            <div data-owner="1">
+              <hr class="trenner">
+              <h3 style="margin-bottom:6px">Alles zurücksetzen</h3>
+              <p class="muted small" style="margin:0 0 12px">Löscht alle Mitglieder, Shops, Verkäufe und Buchungen und setzt den Katalog auf den Anfangszustand. Nur dein Administrator-Zugang und das Protokoll bleiben. Vorher wird automatisch eine Sicherung auf dem Server abgelegt.</p>
+              <button class="btn btn-danger" id="resetBtn">Alles zurücksetzen</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="einst" data-e="log">
+        <div class="zeitraum" data-zr></div>
+        <div class="toolbar">
+          <input id="logSuche" class="field such" type="search" placeholder="Wer, was oder Einzelheit suchen">
+          <select id="logSort" class="field sortwahl" aria-label="Sortieren">
+            <option value="neu">Neueste zuerst</option>
+            <option value="alt">Älteste zuerst</option>
+          </select>
+        </div>
+        <div class="filterzeile"><div class="cats" id="logFilter"></div><span class="muted small num" id="logAnzahl"></span></div>
+        <div id="logListe"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="fusszeile" id="fusszeile" hidden>
+  Umgesetzt von Niklas mit Claude · Ideen von Benedikt und Daniel<br>
+  <span class="small">Kaffeekasse __APP_VERSION__ · <button type="button" class="linkbtn-muted" id="dsLinkFuss">Datenschutz</button></span>
+</footer>
+
+<!-- ============ WARENKORB ============ -->
+<div class="scrim" id="cartScrim"></div>
+<aside class="drawer" id="cartDrawer" aria-label="Warenkorb">
+  <div class="drawer-head">
+    <h2>Warenkorb</h2>
+    <button class="btn btn-ghost btn-sm" id="cartClose">Schließen</button>
+  </div>
+  <div class="drawer-body" id="cartBody"></div>
+  <div class="drawer-foot">
+    <div class="sum-row"><span class="muted">Zwischensumme</span><span class="num" id="cartSub">0,00 €</span></div>
+    <div class="sum-row"><span class="muted">Guthaben danach</span><span class="num" id="cartAfter">0,00 €</span></div>
+    <div class="sum-row" style="margin:12px 0"><span class="sum-total">Summe</span><span class="sum-total" id="cartTotal">0,00 €</span></div>
+    <button class="btn btn-primary btn-lg" id="payBtn" style="width:100%">Bezahlen</button>
+  </div>
+</aside>
+
+<!-- ============ MODAL / TOASTS / DRUCK ============ -->
+<div class="modal-scrim" id="modalScrim"><div class="modal" id="modal"></div></div>
+<div id="toasts"></div>
+<div id="menu" class="menu" hidden role="menu"></div>
+<div id="printarea"></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

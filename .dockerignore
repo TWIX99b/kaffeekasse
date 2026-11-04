@@ -1,0 +1,14 @@
+data/
+sicherungen/
+sicherung/
+tests/
+.github/
+.env
+.env.example
+__pycache__/
+*.pyc
+*.db
+*.db.gz
+.git
+docs/
+README.en.md

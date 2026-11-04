@@ -1,0 +1,72 @@
+# Baut bei jedem Push auf main und bei jedem Versions-Tag (v1.2.0 …) die beiden Images
+# und legt sie in der GitHub Container Registry ab:
+#   ghcr.io/TWIX99b/kaffeekasse            (die App)
+#   ghcr.io/TWIX99b/kaffeekasse-sicherung  (der Sicherungs-Dienst)
+# Vorher laufen die Tests – schlägt ein Test fehl, wird kein Image veröffentlicht.
+name: Images bauen
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Rechentest
+        run: python tests/rechentest.py .
+      - name: Bildtest
+        run: python tests/bildtest.py .
+
+  images:
+    needs: tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - name: kaffeekasse
+            context: .
+          - name: kaffeekasse-sicherung
+            context: ./sicherung
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3          # auch für Raspberry Pi & Co. (arm64)
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}
+          # v0.x = Beta. Jede Version bekommt ihren eigenen Tag (v0.1.0) und „v0.1“ für Fehlerkorrekturen.
+          # „latest“ zeigt auf die neueste Version, „beta“ auf die neueste 0.x- oder Vorabversion.
+          # Vorabversionen (v0.2.0-rc.1) bekommen weder „latest“ noch „v0.2“.
+          tags: |
+            type=semver,pattern=v{{version}}
+            type=semver,pattern=v{{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-') }}
+            type=raw,value=beta,enable=${{ startsWith(github.ref, 'refs/tags/v0.') || (startsWith(github.ref, 'refs/tags/v') && contains(github.ref_name, '-')) }}
+            type=raw,value=main,enable=${{ github.ref == 'refs/heads/main' }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            KAFFEEKASSE_VERSION=${{ github.ref_type == 'tag' && github.ref_name || format('main-{0}', github.sha) }}

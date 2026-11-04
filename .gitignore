@@ -1,0 +1,13 @@
+# Persönliche Einstellungen und echte Daten – nie hochladen
+.env
+data/
+sicherungen/
+*.db
+*.db-wal
+*.db-shm
+*.db.gz
+kaffeekasse-sicherung*.json
+
+# Python
+__pycache__/
+*.pyc

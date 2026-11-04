@@ -1,0 +1,62 @@
+# Kaffeekasse – zwei Container: die App und der Sicherungs-Dienst.
+# Persönliche Einstellungen gehören NICHT hierher, sondern in die Datei .env (Vorlage: .env.example).
+# Die .env wird nicht auf GitHub hochgeladen – so bleibt diese Datei für alle gleich und Updates überschreiben nichts.
+
+services:
+  kaffeekasse:
+    # Fertiges Image von GitHub (Updates: docker compose pull && docker compose up -d).
+    # Ohne Image (z. B. beim Entwickeln) baut „docker compose up -d --build“ aus diesem Ordner.
+    image: ${KAFFEEKASSE_IMAGE:-kaffeekasse}:${KAFFEEKASSE_TAG:-latest}
+    build: .
+    container_name: kaffeekasse
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8080}:8080"
+    volumes:
+      - kaffeekasse-data:/data
+    environment:
+      TZ: ${TZ:-Europe/Berlin}
+      # Beim allerersten Aufruf fragt die Weboberfläche den Administrator ab.
+      # Ist die Kaffeekasse vorher schon im Netz erreichbar: Code setzen, der dabei eingegeben werden muss.
+      EINRICHTUNGS_CODE: ${EINRICHTUNGS_CODE:-}
+      # Startwerte (danach unter Verwaltung → Einstellungen änderbar)
+      SHOP_NAME: ${SHOP_NAME:-Kaffeekasse}
+      ERSTER_SHOP: ${ERSTER_SHOP:-Halle 1}
+      ADRESSE: ${ADRESSE:-http://kaffeekasse.lokal:8080}
+      LIMIT_EUR: ${LIMIT_EUR:-30}
+      AUTO_LOGOUT_SECONDS: ${AUTO_LOGOUT_SECONDS:-300}
+      AUTO_LOGOUT_TEAM_SECONDS: ${AUTO_LOGOUT_TEAM_SECONDS:-900}
+      MIN_BESTAND: ${MIN_BESTAND:-5}
+      STIL: ${STIL:-standard}                          # Design beim ersten Start: standard, hangar, dashboard
+      WARN_GUTHABEN_EUR: ${WARN_GUTHABEN_EUR:-5}       # Hinweis im Einkauf unter diesem Guthaben (0 = aus)
+      DATENSCHUTZ_KONTAKT: ${DATENSCHUTZ_KONTAKT:-}    # Ansprechpartner im Datenschutzhinweis
+      DEMO: ${DEMO:-false}
+      # Sicherungen innerhalb der App (JSON, unter Einstellungen → Sicherung & Daten einlesbar)
+      BACKUP_UHR: ${BACKUP_UHR:-03:00}
+      BACKUP_TAGE: ${BACKUP_TAGE:-14}
+      # Sicherheit
+      MAX_BUCHUNG_EUR: ${MAX_BUCHUNG_EUR:-500}
+      LOGIN_SPERRE_IP: ${LOGIN_SPERRE_IP:-30}
+      PROXY_ANZAHL: ${PROXY_ANZAHL:-0}
+      COOKIE_SECURE: ${COOKIE_SECURE:-auto}
+
+  sicherung:
+    # Zweiter Container: kopiert die Datenbank regelmäßig in einen eigenen Ordner (z. B. auf ein NAS).
+    # Befehle: docker compose exec sicherung sicherung jetzt | liste | pruefen | einspielen <Datei>
+    image: ${KAFFEEKASSE_IMAGE:-kaffeekasse}-sicherung:${KAFFEEKASSE_TAG:-latest}
+    build: ./sicherung
+    container_name: kaffeekasse-sicherung
+    restart: unless-stopped
+    depends_on:
+      - kaffeekasse
+    volumes:
+      - kaffeekasse-data:/data              # dieselbe Datenbank wie die App
+      - ${SICHERUNG_ORDNER:-./sicherungen}:/sicherungen
+    environment:
+      TZ: ${TZ:-Europe/Berlin}
+      SICHERUNG_UHR: ${SICHERUNG_UHR:-02:30}          # mehrere mit Komma, z. B. 02:30,12:30
+      SICHERUNG_ANZAHL: ${SICHERUNG_ANZAHL:-30}       # so viele automatische Sicherungen bleiben liegen
+      MELDE_URL: ${SICHERUNG_MELDE_URL:-}             # optional: ntfy/Gotify-Adresse, meldet nur Fehler
+
+volumes:
+  kaffeekasse-data:
