@@ -918,6 +918,49 @@ def login():
     return jsonify(user=konto_public(k, True), csrf=session["csrf"])
 
 
+def freigabe_pruefen(u, d, wofuer):
+    """Vier-Augen-Prinzip: Eine zweite Person (Shopverantwortliche oder Administrator, nicht man selbst) bestätigt
+    mit Personalnummer und Passwort. Fehlversuche zählen wie bei der Anmeldung (Kontosperre, IP-Sperre).
+    Gibt das Konto der zweiten Person zurück oder wirft Fehler."""
+    if _ip_gesperrt():
+        raise Fehler("Zu viele Fehlversuche von diesem Gerät/Netz. Bitte 15 Minuten warten.", 429)
+    nr = str(d.get("freigabeNummer", "")).strip()
+    geheim = str(d.get("freigabePasswort", ""))
+    if not nr or not geheim:
+        raise Fehler(f"{wofuer} muss eine zweite Person freigeben: bitte deren Personalnummer und Passwort eingeben.", 403)
+    if not NUM_RE.match(nr):
+        raise Fehler("Die Personalnummer der zweiten Person hat genau 8 Ziffern.")
+    if nr == u["nummer"]:
+        raise Fehler("Die Freigabe muss eine andere Person geben (Vier-Augen-Prinzip).", 403)
+    fehler_text = None
+    with tx() as c:
+        k = c.execute("SELECT * FROM konten WHERE nummer=? AND entfernt=0", (nr,)).fetchone()
+        jetzt = ms()
+        if k and k["gesperrt_bis"] > jetzt:
+            fehler_text = ("Der Zugang der zweiten Person ist wegen Fehlversuchen gesperrt. Erneut möglich in "
+                           f"{math.ceil((k['gesperrt_bis'] - jetzt) / 60000)} Minuten.")
+        else:
+            hash_ = k["pw_hash"] if k and k["rolle"] in TEAM else None
+            if not (check_password_hash(hash_ or DUMMY_HASH, geheim) and hash_):
+                _ip_fehlversuch()
+                if k:
+                    f = k["fehler"] + 1
+                    if f >= MAX_FEHLER:
+                        c.execute("UPDATE konten SET fehler=0, gesperrt_bis=? WHERE id=?", (jetzt + SPERRE_MS, k["id"]))
+                        log(c, k["name"], "Zugang vorübergehend gesperrt", "fünf Fehlversuche (Freigabe)")
+                    else:
+                        c.execute("UPDATE konten SET fehler=? WHERE id=?", (f, k["id"]))
+                        log(c, k["name"], "Freigabe fehlgeschlagen", f"für {u['name']} · Versuch {f} von {MAX_FEHLER}")
+                fehler_text = "Freigabe abgelehnt: Personalnummer oder Passwort der zweiten Person stimmt nicht."
+            elif k["stillgelegt"]:
+                fehler_text = "Freigabe abgelehnt: Das Konto der zweiten Person ist stillgelegt."
+            else:
+                c.execute("UPDATE konten SET fehler=0 WHERE id=?", (k["id"],))
+    if fehler_text:
+        raise Fehler(fehler_text, 403)
+    return k
+
+
 @app.post("/api/logout")
 def logout():
     k = aktueller_nutzer()
@@ -2669,14 +2712,20 @@ def kasse_buchung(u):
     beleg = " ".join(str(d.get("beleg", "")).split())[:60]
     if not zweck:
         raise Fehler("Bitte angeben, wofür das Geld ist (Zweck).")
+    zweiter = None
+    if art == "Ausgabe" and u["rolle"] != "inhaber":
+        if betrag > kassenstand():
+            raise Fehler(f"In der Kasse sind nur {eur_txt(kassenstand())}.", 409)
+        zweiter = freigabe_pruefen(u, d, "Geld aus der Kasse")
+    von = u["name"] + (f" · freigegeben von {zweiter['name']}" if zweiter else "")
     with tx() as c:
         stand = kassenstand(c)
         if art == "Ausgabe" and betrag > stand:
             raise Fehler(f"In der Kasse sind nur {eur_txt(stand)}.", 409)
         wert = -betrag if art == "Ausgabe" else betrag
-        kid = kasse_buchen(c, art, wert, u["name"], kategorie, zweck, beleg)
+        kid = kasse_buchen(c, art, wert, von, kategorie, zweck, beleg)
         log(c, u["name"], f"Kasse: {art}", f"{kategorie} · {zweck} · {eur_txt(wert)}" + (f" · Beleg {beleg}" if beleg else "")
-            + f" · Kassenstand {eur_txt(stand + wert)}")
+            + f" · Kassenstand {eur_txt(stand + wert)}" + (f" · freigegeben von {zweiter['name']}" if zweiter else ""))
     return jsonify(id=kid, stand=(stand + wert) / 100)
 
 
@@ -2717,9 +2766,16 @@ def kasse_pruefung(u):
     pruefer2 = " ".join(str(d.get("pruefer2", "")).split())[:80]
     bemerkung = str(d.get("bemerkung", "")).strip()[:500]
     buchen = bool(d.get("buchen", True))
+    freigegeben = False
+    if buchen and ist < kassenstand() and u["rolle"] != "inhaber":
+        # Einen Fehlbetrag auszubuchen nimmt Geld aus der Kasse → nur mit Freigabe; die zweite Person ist dann der 2. Prüfer
+        pruefer2 = freigabe_pruefen(u, d, "Einen Fehlbetrag auszubuchen")["name"]
+        freigegeben = True
     with tx() as c:
         soll = kassenstand(c)
         diff = ist - soll
+        if buchen and diff < 0 and u["rolle"] != "inhaber" and not freigegeben:
+            raise Fehler("Der Kassenstand hat sich gerade geändert – bitte die Prüfung noch einmal speichern.", 409)
         jetzt = ms()   # Prüfung und Differenzbuchung bekommen DENSELBEN Zeitpunkt („seit letzter Prüfung“ stimmt dann)
         pid = c.execute("INSERT INTO kassenpruefungen(zeit, soll, ist, differenz, pruefer, pruefer2, zaehlung, bemerkung, gebucht) "
                         "VALUES (?,?,?,?,?,?,?,?,?)",

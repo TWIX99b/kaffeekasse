@@ -1174,3 +1174,8 @@ details summary{list-style-position:inside}
   .kb-knopf{padding:0 12px}
 }
 @media print{#kBuch{display:none!important}}
+
+/* Vier-Augen-Freigabe in Kassen-Dialogen */
+.freigabe{border:1px solid var(--warn-line);background:var(--warn-bg);border-radius:var(--radius-sm);padding:12px;display:flex;flex-direction:column;gap:10px}
+.freigabe-kopf{display:flex;gap:10px;align-items:flex-start}
+.freigabe-kopf > span{font-size:20px;line-height:1}

@@ -2403,8 +2403,21 @@ $("#kAusgabeBtn").onclick = () => kasseBuchenDialog("ausgabe");
 $("#kEinlageBtn").onclick = () => kasseBuchenDialog("einlage");
 $("#kPruefungBtn").onclick = () => pruefungDialog();
 
+/* Vier-Augen-Freigabe: zweite Person (Shopverantwortliche oder Administrator) bestätigt mit Nummer und Passwort */
+function freigabeFelder(id, text){
+  return `<div class="freigabe" id="${id}">
+      <div class="freigabe-kopf"><span aria-hidden="true">👥</span><div><b>Freigabe durch eine zweite Person</b>
+        <div class="small muted">${text}</div></div></div>
+      <div class="grid-2">
+        <div><label class="label" for="${id}Nr">Personalnummer</label><input id="${id}Nr" class="field num" inputmode="numeric" maxlength="8" autocomplete="off"></div>
+        <div><label class="label" for="${id}Pw">Passwort</label><input id="${id}Pw" class="field" type="password" autocomplete="off"></div>
+      </div></div>`;
+}
+const freigabeWerte = id => ({freigabeNummer:($("#" + id + "Nr") || {}).value?.trim() || "", freigabePasswort:($("#" + id + "Pw") || {}).value || ""});
+
 function kasseBuchenDialog(art){
   const aus = art === "ausgabe";
+  const vierAugen = aus && !istInhaber();
   const kats = (KA && KA.kategorien) || ["Wareneinkauf","Versand","Event","Sonstiges"];
   const vorschlag = aus ? ["Versand","Event","Wareneinkauf","Sonstiges"] : ["Spende","Pfand","Anfangsbestand","Sonstiges"];
   const stand = KA ? KA.stand : (D.kasse || 0);
@@ -2420,6 +2433,7 @@ function kasseBuchenDialog(art){
       </div>
       <div><label class="label" for="kbZweck">Wofür? <span class="muted">(Pflicht)</span></label><input id="kbZweck" class="field" maxlength="200" placeholder="${aus ? "z. B. Paketversand Kaffeebohnen, Grillfest" : "z. B. Pfandrückgabe Kisten"}"></div>
       <p class="small" id="kbInfo" style="margin:0"></p>
+      ${vierAugen ? freigabeFelder("kbFg", "Geld aus der Kasse nehmen geht nur zu zweit. Eine andere Shopverantwortliche oder ein Administrator gibt mit Personalnummer und Passwort frei.") : ""}
     </div>
     <div class="modal-actions"><button class="btn" id="kbAb">Abbrechen</button><button class="btn ${aus ? "btn-danger" : "btn-primary"}" id="kbOk">${aus ? "Ausbuchen" : "Einlage buchen"}</button></div>`);
   $$("#kbKat [data-k]").forEach(b => b.onclick = () => $$("#kbKat [data-k]").forEach(x => x.classList.toggle("active", x === b)));
@@ -2436,6 +2450,11 @@ function kasseBuchenDialog(art){
                zweck:$("#kbZweck").value.trim(), beleg:$("#kbBeleg").value.trim()};
     if (!(d.betrag > 0)){ toast("Bitte einen Betrag eingeben.","err"); return; }
     if (!d.zweck){ toast("Bitte angeben, wofür das Geld ist.","err"); return; }
+    if (vierAugen){
+      Object.assign(d, freigabeWerte("kbFg"));
+      if (!d.freigabeNummer || !d.freigabePasswort){ toast("Bitte die Freigabe der zweiten Person eintragen.","err"); return; }
+      if (d.freigabeNummer === user.nummer){ toast("Die Freigabe muss eine andere Person geben.","err"); return; }
+    }
     busy($("#kbOk"), true);
     const r = await tu("POST", "/api/kasse", d);
     busy($("#kbOk"), false);
@@ -2469,6 +2488,7 @@ function pruefungDialog(){
       <div><label class="label" for="pzBem">Bemerkung</label><input id="pzBem" class="field" maxlength="500" placeholder="optional"></div>
       <label class="row small check-zeile" id="pzBuchenBox" hidden><input type="checkbox" id="pzBuchen" checked>
         <span>Differenz als „Kassendifferenz“ buchen – danach stimmt der Kassenstand wieder mit dem gezählten Geld überein</span></label>
+      ${istInhaber() ? "" : `<div id="pzFgBox" hidden>${freigabeFelder("pzFg", "Einen Fehlbetrag ausbuchen geht nur zu zweit. Wer freigibt, steht als zweiter Prüfer im Protokoll.")}</div>`}
     </div>
     <div class="modal-actions"><button class="btn" id="pzAb">Abbrechen</button><button class="btn btn-primary" id="pzOk">Prüfung speichern</button></div>`);
   $("#modal").classList.add("modal-breit");
@@ -2482,8 +2502,15 @@ function pruefungDialog(){
     $("#pzDiff").textContent = diff ? (diff > 0 ? "+" : "") + EUR(diff) : "stimmt ✓";
     $("#pzDiff").style.color = diff ? (diff < 0 ? "var(--red-text)" : "var(--orange-text)") : "var(--green-text)";
     $("#pzBuchenBox").hidden = !diff;
+    if ($("#pzFgBox")){
+      const noetig = diff < 0 && $("#pzBuchen").checked;
+      $("#pzFgBox").hidden = !noetig;
+      $("#pzZweiter").disabled = noetig;
+      $("#pzZweiter").placeholder = noetig ? "kommt aus der Freigabe" : "Name";
+    }
   };
   $$("#modal .zz").forEach(i => i.addEventListener("input", rechnen));
+  $("#pzBuchen").addEventListener("change", rechnen);
   rechnen();
   const zu = () => { $("#modal").classList.remove("modal-breit"); closeModal(); };
   $("#pzAb").onclick = zu;
@@ -2491,9 +2518,14 @@ function pruefungDialog(){
     const zaehlung = {};
     $$("#modal .zz").forEach(i => { const n = parseInt(i.value) || 0; if (n) zaehlung[i.dataset.c] = n; });
     if (!Object.keys(zaehlung).length && stand !== 0){ toast("Bitte das gezählte Geld eintragen.","err"); return; }
+    const fg = $("#pzFgBox") && !$("#pzFgBox").hidden ? freigabeWerte("pzFg") : {};
+    if ($("#pzFgBox") && !$("#pzFgBox").hidden){
+      if (!fg.freigabeNummer || !fg.freigabePasswort){ toast("Bitte die Freigabe der zweiten Person eintragen.","err"); return; }
+      if (fg.freigabeNummer === user.nummer){ toast("Die Freigabe muss eine andere Person geben.","err"); return; }
+    }
     busy($("#pzOk"), true);
     const r = await tu("POST", "/api/kasse/pruefung", {zaehlung, ist: ist / 100, pruefer2:$("#pzZweiter").value.trim(),
-      bemerkung:$("#pzBem").value.trim(), buchen:$("#pzBuchen").checked});
+      bemerkung:$("#pzBem").value.trim(), buchen:$("#pzBuchen").checked, ...fg});
     busy($("#pzOk"), false);
     if (!r) return;
     zu();
