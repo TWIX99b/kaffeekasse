@@ -919,15 +919,16 @@ def login():
 
 
 def freigabe_pruefen(u, d, wofuer):
-    """Vier-Augen-Prinzip: Eine zweite Person (Shopverantwortliche oder Administrator, nicht man selbst) bestätigt
-    mit Personalnummer und Passwort. Fehlversuche zählen wie bei der Anmeldung (Kontosperre, IP-Sperre).
+    """Vier-Augen-Prinzip: Eine zweite Person (jedes aktive Konto außer dem eigenen) bestätigt mit Personalnummer und
+    ihrer PIN. Eine noch nicht geänderte Einmal-PIN zählt nicht – die kennt ja, wer sie vergeben hat.
+    Fehlversuche zählen wie bei der Anmeldung (Kontosperre, IP-Sperre).
     Gibt das Konto der zweiten Person zurück oder wirft Fehler."""
     if _ip_gesperrt():
         raise Fehler("Zu viele Fehlversuche von diesem Gerät/Netz. Bitte 15 Minuten warten.", 429)
     nr = str(d.get("freigabeNummer", "")).strip()
     geheim = str(d.get("freigabePasswort", ""))
     if not nr or not geheim:
-        raise Fehler(f"{wofuer} muss eine zweite Person freigeben: bitte deren Personalnummer und Passwort eingeben.", 403)
+        raise Fehler(f"{wofuer} muss eine zweite Person freigeben: bitte deren Personalnummer und PIN eingeben.", 403)
     if not NUM_RE.match(nr):
         raise Fehler("Die Personalnummer der zweiten Person hat genau 8 Ziffern.")
     if nr == u["nummer"]:
@@ -940,7 +941,7 @@ def freigabe_pruefen(u, d, wofuer):
             fehler_text = ("Der Zugang der zweiten Person ist wegen Fehlversuchen gesperrt. Erneut möglich in "
                            f"{math.ceil((k['gesperrt_bis'] - jetzt) / 60000)} Minuten.")
         else:
-            hash_ = k["pw_hash"] if k and k["rolle"] in TEAM else None
+            hash_ = k["pin_hash"] if k and PIN_RE.match(geheim) else None
             if not (check_password_hash(hash_ or DUMMY_HASH, geheim) and hash_):
                 _ip_fehlversuch()
                 if k:
@@ -951,7 +952,10 @@ def freigabe_pruefen(u, d, wofuer):
                     else:
                         c.execute("UPDATE konten SET fehler=? WHERE id=?", (f, k["id"]))
                         log(c, k["name"], "Freigabe fehlgeschlagen", f"für {u['name']} · Versuch {f} von {MAX_FEHLER}")
-                fehler_text = "Freigabe abgelehnt: Personalnummer oder Passwort der zweiten Person stimmt nicht."
+                fehler_text = "Freigabe abgelehnt: Personalnummer oder PIN der zweiten Person stimmt nicht."
+            elif k["pin_muss_aendern"]:
+                fehler_text = ("Freigabe abgelehnt: Die zweite Person hat noch ihre Einmal-PIN. "
+                               "Sie muss sich erst einmal anmelden und eine eigene PIN festlegen.")
             elif k["stillgelegt"]:
                 fehler_text = "Freigabe abgelehnt: Das Konto der zweiten Person ist stillgelegt."
             else:

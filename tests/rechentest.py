@@ -211,22 +211,24 @@ ka0 = db.execute("SELECT SUM(betrag) FROM kasse").fetchone()[0]
 aus = {"art": "ausgabe", "betrag": "1", "zweck": "Paketversand", "kategorie": "Versand"}
 s, j = sv.req("POST", "/api/kasse", aus)
 ok(s == 403, f"Ausgabe ohne Freigabe abgelehnt ({s})")
-s, j = sv.req("POST", "/api/kasse", {**aus, "freigabeNummer": "30000001", "freigabePasswort": "SabinePasswort9"})
+s, j = sv.req("POST", "/api/kasse", {**aus, "freigabeNummer": "30000001", "freigabePasswort": "8264"})
 ok(s == 403, f"Freigabe durch sich selbst abgelehnt ({s})")
-s, j = sv.req("POST", "/api/kasse", {**aus, "freigabeNummer": "10000001", "freigabePasswort": "falsch-falsch"})
+s, j = sv.req("POST", "/api/kasse", {**aus, "freigabeNummer": "10000001", "freigabePasswort": "1111"})
 fe = db.execute("SELECT fehler FROM konten WHERE nummer='10000001'").fetchone()[0]
-ok(s == 403 and fe == 1, f"Falsches Passwort der zweiten Person abgelehnt und als Fehlversuch gezählt ({s}, Fehler {fe})")
-s, j = sv.req("POST", "/api/kasse", {**aus, "freigabeNummer": "10000001", "freigabePasswort": "4826"})
-ok(s == 403, f"Freigabe mit PIN statt Passwort abgelehnt ({s})")
-mitg = db.execute("SELECT nummer FROM konten WHERE rolle='kunde' AND entfernt=0 LIMIT 1").fetchone()[0]
-s, j = sv.req("POST", "/api/kasse", {**aus, "freigabeNummer": mitg, "freigabePasswort": "irgendwas123"})
-ok(s == 403, f"Mitglied (keine Shopverantwortliche) kann nicht freigeben ({s})")
+ok(s == 403 and fe == 1, f"Falsche PIN der zweiten Person abgelehnt und als Fehlversuch gezählt ({s}, Fehler {fe})")
+s, j = sv.req("POST", "/api/kasse", {**aus, "freigabeNummer": "10000001", "freigabePasswort": "AdminPasswort1"})
+ok(s == 403, f"Freigabe mit Passwort statt PIN abgelehnt ({s})")
+s, j = adm.req("POST", "/api/konten", {"vorname": "Neu", "nachname": "Einmal", "nummer": "20000099"})
+einmal_pin = j["einmalPin"]
+s, j = sv.req("POST", "/api/kasse", {**aus, "freigabeNummer": "20000099", "freigabePasswort": einmal_pin})
+ok(s == 403 and "Einmal-PIN" in j["fehler"], f"Freigabe mit noch nicht geänderter Einmal-PIN abgelehnt ({s})")
 ka1 = db.execute("SELECT SUM(betrag) FROM kasse").fetchone()[0]
 ok(ka1 == ka0, "Abgelehnte Ausgaben ändern die Kasse nicht")
-s, j = sv.req("POST", "/api/kasse", {**aus, "freigabeNummer": "10000001", "freigabePasswort": "AdminPasswort1"})
+s, j = sv.req("POST", "/api/kasse", {**aus, "freigabeNummer": "20000002", "freigabePasswort": "5182"})
 von = db.execute("SELECT von FROM kasse ORDER BY id DESC LIMIT 1").fetchone()[0]
 fe = db.execute("SELECT fehler FROM konten WHERE nummer='10000001'").fetchone()[0]
-ok(s == 200 and "freigegeben von Max Mustermann" in von and fe == 0, f"Ausgabe mit Freigabe gebucht („{von}“)")
+sara = db.execute("SELECT name FROM konten WHERE nummer='20000002'").fetchone()[0]
+ok(s == 200 and f"freigegeben von {sara}" in von, f"Ausgabe mit Freigabe durch ein Mitglied (PIN) gebucht („{von}“)")
 s, j = sv.req("POST", "/api/kasse", {"art": "einlage", "betrag": "1", "zweck": "Spende", "kategorie": "Spende"})
 ok(s == 200, "Einlage braucht keine Freigabe")
 s, j = adm.req("POST", "/api/kasse", {**aus})
@@ -237,7 +239,7 @@ ok(s == 403, f"Fehlbetrag ausbuchen ohne Freigabe abgelehnt ({s})")
 s, j = sv.req("POST", "/api/kasse/pruefung", {"ist": f"{(stand - 50) / 100:.2f}", "buchen": False})
 ok(s == 200, "Prüfung mit Fehlbetrag ohne Buchung geht ohne Freigabe")
 s, j = sv.req("POST", "/api/kasse/pruefung", {"ist": f"{(stand - 50) / 100:.2f}", "buchen": True, "pruefer2": "Erfunden",
-                                             "freigabeNummer": "10000001", "freigabePasswort": "AdminPasswort1"})
+                                             "freigabeNummer": "10000001", "freigabePasswort": "4826"})
 ok(s == 200 and j["pruefer2"] == "Max Mustermann" and j["differenz"] == -0.5,
    f"Fehlbetrag mit Freigabe gebucht, zweiter Prüfer aus der Freigabe ({j and j.get('pruefer2')})")
 
