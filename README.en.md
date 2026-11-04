@@ -383,6 +383,6 @@ On GitHub the calculation test runs before every image build (`.github/workflows
 
 **License:** [MIT](LICENSE) – use, modify and share freely as long as the license notice is kept. No warranty: this is a hobby project, no liability for errors in amounts.
 
-Bundled fonts: **Inter** (The Inter Project Authors), **Allerta Stencil** (Matt McInerney), **Caveat** (Impallari Type) and **EB Garamond** (Georg Duffner, Octavio Pardo), all under the SIL Open Font License 1.1 – license texts in `static/fonts`.
+Bundled fonts: **Inter** (The Inter Project Authors), **Allerta Stencil** (Matt McInerney), **Caveat** (The Caveat Project Authors) and **EB Garamond** (The EB Garamond Project Authors), all under the SIL Open Font License 1.1 – license texts in `static/fonts`.
 
 Built by **Niklas** with **Claude** · ideas by **Benedikt** and **Daniel**.
