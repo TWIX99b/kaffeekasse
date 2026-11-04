@@ -10,6 +10,7 @@ Läuft im Docker-Container im eigenen Netz, ohne Cloud, ohne App-Store.
 ![Version](https://img.shields.io/badge/Version-0.x%20Beta-orange)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![Lizenz: MIT](https://img.shields.io/badge/Lizenz-MIT-green)
 ![SQLite](https://img.shields.io/badge/Datenbank-SQLite-003B57?logo=sqlite&logoColor=white)
 
 <img src="docs/screenshots/designs.png" alt="Einkauf in den drei Designs Standard, Hangar und Dashboard" width="860">

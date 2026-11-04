@@ -10,6 +10,7 @@ Runs in Docker on your own network – no cloud, no app store.
 ![Version](https://img.shields.io/badge/version-0.x%20beta-orange)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![License: MIT](https://img.shields.io/badge/License-MIT-green)
 ![SQLite](https://img.shields.io/badge/database-SQLite-003B57?logo=sqlite&logoColor=white)
 
 <img src="docs/screenshots/designs.png" alt="Shop view in the three designs Standard, Hangar and Dashboard" width="860">
