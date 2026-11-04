@@ -189,11 +189,11 @@ All lists work the same way: **search**, **sort** and **+ new** at the top, **fi
 **Sales** – all purchases in the period. **Cancel** single items or whole purchases: the money goes back to the account, the goods back into the shop's fridge. Count and total are computed by the server over all purchases in the period; the newest 2000 are listed.
 
 **Assortment** – the catalogue with stock per shop, split into **❄ fridge** (sold from here) and **▦ storeroom**.
-- **Flow:** new goods → **goods receipt** (usually into the storeroom, with purchase price per unit) → **refill** (storeroom → fridge) → sales and cancellations use the fridge.
+- **Flow:** new goods → **goods receipt** (usually into the storeroom, with purchase price per unit) → **refill** (storeroom → fridge) → sales and cancellations use the fridge. Need room in the fridge? ☰ → **Ins Lager zurücklegen** (fridge → storeroom).
 - **Stocktake** separately for fridge and storeroom; differences are booked as shrinkage or surplus.
 - **Order suggestion:** projects consumption of the last 28 days onto the next 7/14/21/28 days, adds the refill threshold as a buffer and subtracts fridge and storeroom. Per shop and in total, with estimated cost; print or CSV.
 - **Custom order per shop** (drag or ↑/↓), matching how products sit in the fridge.
-- Goods receipts, refills and stocktakes are recorded in the **stock ledger** (☰ → Lagerbewegungen); sales and cancellations are listed under **sales**.
+- Goods receipts, refills, returns to the storeroom and stocktakes are recorded in the **stock ledger** (☰ → Lagerbewegungen); sales and cancellations are listed under **sales**.
 - Products are shown as a drawn can or bar; an uploaded photo replaces the drawing (PNG/WebP keep their transparency).
 
 **Members** – all accounts with last name, first name, staff number, internal phone extension and balance. Main action **top up**; the ☰ menu offers deduct, account history, edit account (including PIN/password reset), change role, assigned shops, deactivate, delete.
@@ -202,7 +202,7 @@ All lists work the same way: **search**, **sort** and **+ new** at the top, **fi
 - **Delete:** purchases and bookings are kept for accounting, a remaining balance is written off, the staff number becomes free.
 
 **Cash box** (cash, one shared box for all shops)
-- **Cash on hand** – how much cash should be in the box. **Cash book** with the running balance after every booking.
+- **Cash on hand** – how much cash should be in the box. **Cash book** with the running balance after every booking – either as a **book** (ruled paper, handwriting, carry-over per page, audit stamps, one page at a time on phones) or as a **list** with search, sorting and reversal.
 - **Every top-up is cash** and increases the cash on hand. When deducting, a checkbox decides whether cash was paid out or it is just a correction.
 - **Pay out** (purchase of goods, shipping, events …) with purpose and receipt number, **deposit** for money that is not a balance (donation, opening balance).
 - An administrator reverses wrong bookings with a counter-entry – nothing is ever deleted from the cash book.
@@ -383,6 +383,6 @@ On GitHub the calculation test runs before every image build (`.github/workflows
 
 **License:** [MIT](LICENSE) – use, modify and share freely as long as the license notice is kept. No warranty: this is a hobby project, no liability for errors in amounts.
 
-Bundled fonts: **Inter** (The Inter Project Authors) and **Allerta Stencil** (Matt McInerney), both under the SIL Open Font License 1.1 – license texts in `static/fonts`.
+Bundled fonts: **Inter** (The Inter Project Authors), **Allerta Stencil** (Matt McInerney), **Caveat** (Impallari Type) and **EB Garamond** (Georg Duffner, Octavio Pardo), all under the SIL Open Font License 1.1 – license texts in `static/fonts`.
 
 Built by **Niklas** with **Claude** · ideas by **Benedikt** and **Daniel**.

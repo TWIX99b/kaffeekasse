@@ -2126,6 +2126,35 @@ def produkt_auffuellen(u, pid):
     return jsonify(bestand=b["menge"] + menge, lager=b["lager"] - menge)
 
 
+@app.post("/api/produkte/<int:pid>/zuruecklagern")
+@api(TEAM)
+def produkt_zuruecklagern(u, pid):
+    """Vom Kühlschrank zurück ins Lager derselben Halle – z. B. wenn im Kühlschrank Platz für Neues gebraucht wird."""
+    d = body()
+    try:
+        menge = int(d.get("menge"))
+    except (TypeError, ValueError):
+        raise Fehler("Bitte eine Menge eingeben.")
+    if menge < 1 or menge > 9999:
+        raise Fehler("Die Menge muss zwischen 1 und 9999 liegen.")
+    with tx() as c:
+        p = _get_produkt(c, pid)
+        shop = _get_shop(c, d.get("shop"))
+        darf_shop(u, shop["id"])
+        b = c.execute("SELECT menge, lager FROM bestand WHERE produkt_id=? AND shop_id=?", (pid, shop["id"])).fetchone()
+        if not b or b["menge"] < menge:
+            raise Fehler(f"Im Kühlschrank sind nur {max(b['menge'], 0) if b else 0} Stück {p['name']}.", 409)
+        c.execute("UPDATE bestand SET menge = menge - ?, lager = lager + ? WHERE produkt_id=? AND shop_id=?",
+                  (menge, menge, pid, shop["id"]))
+        c.execute("INSERT INTO lagerbuch(zeit, shop_id, produkt_id, name, art, menge, ek, von, notiz, ort) "
+                  "VALUES (?,?,?,?,?,?,?,?,?,?)",
+                  (ms(), shop["id"], pid, p["name"], "Zurücklagern", menge, p["ek"], u["name"], "Kühlschrank → Lager",
+                   "rueckumlagerung"))
+        log(c, u["name"], "Ins Lager zurückgelegt", f"{shop['name']} · {menge}× {p['name']} aus dem Kühlschrank · "
+            f"jetzt Kühlschrank {b['menge'] - menge}, Lager {b['lager'] + menge}")
+    return jsonify(bestand=b["menge"] - menge, lager=b["lager"] + menge)
+
+
 @app.post("/api/inventur")
 @api(TEAM)
 def inventur(u):
@@ -2441,7 +2470,8 @@ def export_lagerbuch(u):
     for r in db().execute("SELECT l.*, s.name AS shop FROM lagerbuch l LEFT JOIN shops s ON s.id=l.shop_id "
                           f"WHERE l.shop_id IN {_in(ids)} AND l.zeit >= ? AND l.zeit < ? ORDER BY l.id", (von, bis)):
         rows.append([zeit_txt(r["zeit"]), r["shop"] or "", r["name"], r["art"],
-                     {"kuehlschrank": "Kühlschrank", "lager": "Lager", "umlagerung": "Lager → Kühlschrank"}.get(r["ort"], r["ort"]),
+                     {"kuehlschrank": "Kühlschrank", "lager": "Lager", "umlagerung": "Lager → Kühlschrank",
+                      "rueckumlagerung": "Kühlschrank → Lager"}.get(r["ort"], r["ort"]),
                      r["menge"], de(r["ek"]),
                      de(None if r["ek"] is None else r["ek"] * r["menge"]), r["von"], r["notiz"]])
     return csv_antwort(_dateiname("lagerbuch"), rows)

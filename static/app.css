@@ -4,6 +4,13 @@
   src:url('/static/fonts/InterVariable.woff2') format('woff2')}
 @font-face{font-family:'Allerta Stencil';font-style:normal;font-weight:400;font-display:swap;
   src:url('/static/fonts/AllertaStencil-Regular.ttf') format('truetype')}
+/* Kassenbuch als Buch: Handschrift und Buchschrift (werden nur geladen, wenn das Buch zu sehen ist) */
+@font-face{font-family:'Caveat';font-style:normal;font-weight:400 700;font-display:swap;
+  src:url('/static/fonts/Caveat.woff') format('woff')}
+@font-face{font-family:'EB Garamond';font-style:normal;font-weight:400 800;font-display:swap;
+  src:url('/static/fonts/EBGaramond.woff') format('woff')}
+@font-face{font-family:'EB Garamond';font-style:italic;font-weight:400 800;font-display:swap;
+  src:url('/static/fonts/EBGaramond-Italic.woff') format('woff')}
 :root{
   --bg:#101319;
   --surface:#171B23;
@@ -877,6 +884,22 @@ details summary{list-style-position:inside}
 [data-stil="hangar"] :is(.card,.prod,.kpi,.demo-card){box-shadow:var(--glas-kante), 0 10px 28px var(--shadow-soft)}
 [data-stil="hangar"] :is(.modal,.drawer){background:rgba(32,36,40,.86);-webkit-backdrop-filter:blur(22px) saturate(160%);backdrop-filter:blur(22px) saturate(160%)}
 [data-stil="hangar"] .drawer-foot{background:rgba(255,255,255,.05)}
+/* Verwaltung: Listen und Tabellen lesbar halten – deckendere Glasflächen, Hintergrund ruhiger */
+[data-stil="hangar"] :is(.list-item,.table-wrap,.kb-buch-tisch){
+  background:rgba(30,34,38,.78);border-color:rgba(255,255,255,.14);
+  -webkit-backdrop-filter:blur(22px) saturate(140%);backdrop-filter:blur(22px) saturate(140%);
+}
+[data-stil="hangar"] .list-item:hover{background:rgba(40,45,50,.86)}
+[data-stil="hangar"][data-ansicht="admin"] body{
+  background-image:
+    radial-gradient(ellipse 45% 32% at 18% -4%, rgba(255,217,160,.22), transparent 70%),
+    radial-gradient(ellipse 40% 28% at 86% -4%, rgba(255,231,194,.16), transparent 70%),
+    linear-gradient(-14deg, transparent 46.6%, rgba(242,194,48,.22) 46.6%, rgba(242,194,48,.22) 49%,
+                    transparent 49%, transparent 50.6%, rgba(242,194,48,.14) 50.6%, rgba(242,194,48,.14) 51.3%, transparent 51.3%),
+    linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+}
+[data-stil="hangar"][data-ansicht="admin"] body::after{opacity:.08}
 /* Kopfzeile mit Warnstreifen statt Linie */
 [data-stil="hangar"] .topbar{border-bottom:none}
 [data-stil="hangar"] .topbar::after{
@@ -1054,3 +1077,100 @@ details summary{list-style-position:inside}
   body > *:not(#printarea){display:none!important}
   #printarea{position:static!important}
 }
+
+
+/* =========================================================
+   Kassenbuch als Buch (Kasse → Ansicht „Buch“). Das Papier sieht in jedem Design gleich aus.
+   ========================================================= */
+#kAnsicht{flex-shrink:0}
+.kb-tisch{--kb-papier:#f7f1e1;--kb-tinte:#1f3a8a;--kb-rot:#b42318;--kb-dunkel:#2a1d15;--kb-braun:#5c4a3c;--kb-linie:#b9cde0;
+  --kb-rand:#d9898a;--kb-stempel:#6b2fa0;--kb-zeile:32px;
+  display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:6px}
+.kb-buch{position:relative;display:flex;width:100%;max-width:1200px;filter:drop-shadow(0 16px 26px rgba(0,0,0,.42))}
+.kb-buch::before{content:"";position:absolute;inset:-8px -10px -10px -10px;background:#5a1f17;border-radius:10px;z-index:-1}
+.kb-seite{position:relative;flex:1 1 0;min-width:0;box-sizing:border-box;background:var(--kb-papier);color:var(--kb-dunkel);
+  font-family:'EB Garamond',Georgia,serif;display:flex;flex-direction:column;padding:28px 26px 18px 40px}
+.kb-links{border-radius:6px 0 0 6px;box-shadow:inset -30px 0 30px -18px rgba(70,45,20,.38)}
+.kb-rechts{border-radius:0 6px 6px 0;box-shadow:inset 30px 0 30px -18px rgba(70,45,20,.38);padding-left:30px;padding-right:40px}
+.kb-seite::before{content:"";position:absolute;top:0;bottom:0;left:30px;width:3px;border-left:1px solid var(--kb-rand);border-right:1px solid var(--kb-rand);pointer-events:none}
+.kb-rechts::before{left:18px}
+.kb-band{position:absolute;top:-8px;right:12px;width:16px;height:calc(100% + 30px);background:#9b2c22;
+  clip-path:polygon(0 0,100% 0,100% 100%,50% 97%,0 100%);z-index:2;pointer-events:none}
+.kb-kopf{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;padding-bottom:8px;border-bottom:2px solid #3a2a20;position:relative}
+.kb-titel{font-size:34px;font-style:italic;font-weight:600;line-height:1}
+.kb-titel-klein{font-size:20px;font-weight:400}
+.kb-unter{font-size:14px;color:var(--kb-braun);letter-spacing:.04em}
+.kb-monat{font-family:'Caveat',cursive;font-size:28px;color:var(--kb-tinte);line-height:1;text-align:right}
+.kb-rechts .kb-monat{margin-right:6px}
+.kb-raster{display:grid;grid-template-columns:50px 46px minmax(0,1fr) 64px 64px 70px;column-gap:6px}
+.kb-kopfzeile{padding:8px 0 4px;font-size:11.5px;font-variant:small-caps;letter-spacing:.08em;color:var(--kb-braun);border-bottom:1px solid #3a2a20}
+.kb-kopf-handy{display:flex;justify-content:space-between}
+.kb-r{text-align:right}
+.kb-linien{flex:1;background-image:repeating-linear-gradient(to bottom,transparent 0,transparent calc(var(--kb-zeile) - 1px),var(--kb-linie) calc(var(--kb-zeile) - 1px),var(--kb-linie) var(--kb-zeile))}
+.kb-z{height:var(--kb-zeile);box-sizing:border-box;align-items:end;padding-bottom:3px;font-family:'Caveat',cursive;font-size:20px;line-height:1;color:var(--kb-tinte)}
+.kb-z > span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.kb-beleg{font-size:17px;color:var(--kb-braun)}
+.kb-ueb .kb-txt{font-style:italic;color:var(--kb-braun)}
+.kb-rot{color:var(--kb-rot)}
+.kb-blau{color:var(--kb-tinte)}
+.kb-fett{font-weight:700}
+.kb-storniert .kb-txt,.kb-storniert .kb-r{text-decoration:line-through;text-decoration-color:rgba(180,35,24,.7);opacity:.75}
+.kb-klick{cursor:pointer}
+.kb-klick:hover,.kb-klick:focus-visible{background:rgba(107,47,160,.08);outline:none}
+.kb-fuss{padding-top:6px;border-top:2px solid #3a2a20;font-size:13px;align-items:baseline}
+.kb-fuss > span{white-space:nowrap}
+.kb-fuss.kb-raster .kb-kursiv{grid-column:1 / 4;text-align:right;padding-right:4px}
+.kb-hand{font-family:'Caveat',cursive;font-size:21px}
+.kb-doppelt{text-decoration:underline double;color:var(--kb-tinte)}
+.kb-kursiv{font-style:italic}
+.kb-seitennr{text-align:center;font-size:13px;color:#8a7765;margin-top:8px}
+.kb-unbeschrieben{min-height:200px}
+/* Prüfstempel: 3 Zeilen hoch (Handy: 2 Einträge) */
+.kb-stempel{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;gap:3px;
+  height:calc(var(--kb-zeile) * 3 - 8px);margin:4px 0 4px auto;width:min(310px,92%);transform:rotate(-2.5deg);
+  border:3px double var(--kb-stempel);border-radius:6px;padding:3px 12px 4px;color:var(--kb-stempel);
+  background:rgba(247,241,225,.86);font-family:'EB Garamond',Georgia,serif;overflow:hidden}
+.kb-stempel:focus-visible{outline:2px solid var(--kb-stempel);outline-offset:2px}
+.kb-st-titel{font-size:13px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;text-align:center;line-height:1}
+.kb-st-datum{display:none}
+.kb-st-werte{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));font-size:11.5px;text-align:center;border-top:1px solid var(--kb-stempel);border-bottom:1px solid var(--kb-stempel);padding:1px 0;line-height:1.15}
+.kb-st-werte b{display:block}
+.kb-st-sign{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;font-size:9px;line-height:1}
+.kb-st-sign > span{display:flex;flex-direction:column;border-top:0}
+.kb-st-sign i{font-style:normal;font-family:'Caveat',cursive;font-size:17px;color:var(--kb-tinte);border-bottom:1px solid var(--kb-stempel);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Blättern */
+.kb-nav{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;justify-content:center;max-width:1200px;width:100%}
+.kb-knopf{min-height:44px;padding:0 16px;border-radius:22px;border:1px solid var(--line);background:var(--surface);color:var(--text);font:inherit;cursor:pointer}
+.kb-knopf:hover:not(:disabled){background:var(--hover)}
+.kb-knopf:disabled{opacity:.4;cursor:default}
+.kb-stand{text-align:center;color:var(--muted);font-size:14px;min-width:200px}
+.kb-stand b{color:var(--text)}
+.kb-hinweis{text-align:center;margin:0}
+/* Handy: eine Seite, zweizeilige Einträge */
+.kb-handy::before{inset:-6px -6px -8px -6px}
+.kb-handy .kb-seite{border-radius:4px 8px 8px 4px;box-shadow:inset 14px 0 18px -10px rgba(70,45,20,.45);padding:14px 14px 10px 50px}
+.kb-handy .kb-seite::before{left:38px}
+.kb-handy .kb-band{right:26px;height:110px;top:-4px;clip-path:polygon(0 0,100% 0,100% 100%,50% 90%,0 100%)}
+.kb-handy .kb-titel{font-size:28px}
+.kb-handy .kb-kopf{flex-direction:column;align-items:flex-start;gap:4px;padding-right:34px}
+.kb-handy .kb-monat{font-size:24px;text-align:left}
+.kb-kurz{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:6px 0;font-size:12px;color:var(--kb-braun)}
+.kb-kurz > div{display:flex;flex-direction:column}
+.kb-kurz > div:last-child{align-items:flex-end;text-align:right}
+.kb-kurz span{font-variant:small-caps;letter-spacing:.08em}
+.kb-kurz b{font-family:'Caveat',cursive;font-size:22px;color:var(--kb-tinte);line-height:1}
+.kb-handy .kb-z{height:calc(var(--kb-zeile) * 2);display:grid;grid-template-rows:var(--kb-zeile) var(--kb-zeile);padding-bottom:0}
+.kb-z1,.kb-z2{display:flex;justify-content:space-between;align-items:flex-end;gap:8px;padding-bottom:3px;min-width:0}
+.kb-z1 .kb-txt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.kb-z2{font-size:16px;color:var(--kb-braun)}
+.kb-z2 b{color:var(--kb-tinte);font-size:18px}
+.kb-dat{font-size:17px;color:var(--kb-braun)}
+.kb-betrag{flex-shrink:0;font-weight:700}
+.kb-handy .kb-stempel{height:calc(var(--kb-zeile) * 4 - 8px);width:auto;margin:4px 4px 4px 0;gap:4px}
+.kb-handy .kb-st-datum{display:block;font-size:12px;text-align:center;letter-spacing:.06em;line-height:1}
+.kb-handy .kb-fuss{display:flex;justify-content:space-between;font-size:12px;color:var(--kb-braun)}
+@media (max-width: 900px){
+  .kb-nav .kb-stand{order:-1;flex-basis:100%}
+  .kb-knopf{padding:0 12px}
+}
+@media print{#kBuch{display:none!important}}

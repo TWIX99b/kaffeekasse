@@ -187,11 +187,11 @@ Alle Listen funktionieren gleich: oben **Suche**, **Sortierung** und **+ Neu**, 
 **Verkäufe** – alle Einkäufe im Zeitraum. Einzelne Posten oder ganze Einkäufe **stornieren**: Das Geld geht zurück aufs Konto, die Ware zurück in den Kühlschrank des Shops. Anzahl und Summe rechnet der Server über alle Einkäufe im Zeitraum; angezeigt werden die neuesten 2000.
 
 **Sortiment** – der Katalog mit dem Bestand je Shop, getrennt nach **❄ Kühlschrank** (daraus wird verkauft) und **▦ Lager** (Vorrat im Lagerraum).
-- **Ablauf:** neue Ware → **Wareneingang** (meist ins Lager, mit Einkaufspreis je Stück) → **Auffüllen** (Lager → Kühlschrank) → Verkauf und Storno laufen über den Kühlschrank.
+- **Ablauf:** neue Ware → **Wareneingang** (meist ins Lager, mit Einkaufspreis je Stück) → **Auffüllen** (Lager → Kühlschrank) → Verkauf und Storno laufen über den Kühlschrank. Wird Platz gebraucht: ☰ → **Ins Lager zurücklegen** (Kühlschrank → Lager).
 - **Inventur** getrennt für Kühlschrank und Lager; Abweichungen werden als Schwund bzw. Mehrbestand gebucht.
 - **Bestellvorschlag:** rechnet aus dem Verbrauch der letzten 28 Tage hoch, was für die nächsten 7/14/21/28 Tage fehlt – plus die Nachfüll-Grenze als Puffer, abzüglich Kühlschrank und Lager. Je Shop und gesamt, mit geschätzten Kosten; drucken oder als CSV.
 - **Eigene Reihenfolge je Shop** (ziehen oder mit ↑/↓), so wie die Produkte im Kühlschrank stehen.
-- Wareneingang, Auffüllen und Inventur stehen im **Lagerbuch** (☰ → Lagerbewegungen); Verkäufe und Stornos stehen unter **Verkäufe**.
+- Wareneingang, Auffüllen, Zurücklegen und Inventur stehen im **Lagerbuch** (☰ → Lagerbewegungen); Verkäufe und Stornos stehen unter **Verkäufe**.
 - Als Bild dient eine gezeichnete Dose oder ein Riegel; ein eigenes Foto ersetzt die Zeichnung (PNG/WebP mit Transparenz bleiben transparent).
 
 **Mitglieder** – alle Konten mit Nachname, Vorname, Personalnummer, interner Rufnummer und Guthaben. Hauptaktion **Aufladen**, im ☰-Menü: Abbuchen, Kontoverlauf, Konto bearbeiten (inklusive PIN/Passwort zurücksetzen), Rolle ändern, zuständige Shops, Stilllegen, Löschen.
@@ -200,7 +200,7 @@ Alle Listen funktionieren gleich: oben **Suche**, **Sortierung** und **+ Neu**, 
 - **Löschen:** Käufe und Buchungen bleiben für die Abrechnung erhalten, ein Restsaldo wird ausgebucht, die Personalnummer wird frei.
 
 **Kasse** (Bargeld, eine gemeinsame Kasse für alle Shops)
-- **Kassenstand** – so viel Bargeld sollte in der Kasse sein. **Kassenbuch** mit laufendem Stand nach jeder Buchung.
+- **Kassenstand** – so viel Bargeld sollte in der Kasse sein. **Kassenbuch** mit laufendem Stand nach jeder Buchung – wahlweise als **Buch** (liniertes Papier, Handschrift, Übertrag je Seite, Prüfstempel, auf dem Handy eine Seite zum Blättern) oder als **Liste** mit Suche, Sortierung und Storno.
 - **Jede Aufladung ist Bargeld** und erhöht den Kassenstand. Beim Abbuchen entscheidet ein Haken, ob Geld bar ausgezahlt wurde oder es nur eine Korrektur ist.
 - **Geld ausbuchen** (Wareneinkauf, Versand, Event …) mit Zweck und Beleg-Nr., **Einlage** für Geld, das kein Guthaben ist (Spende, Anfangsbestand).
 - Fehlbuchungen storniert ein Administrator per Gegenbuchung – im Kassenbuch wird nie etwas gelöscht.
@@ -381,6 +381,6 @@ Auf GitHub läuft der Rechentest vor jedem Image-Bau (`.github/workflows/images.
 
 **Lizenz:** [MIT](LICENSE) – Nutzen, Verändern und Weitergeben ist erlaubt, solange der Lizenzhinweis erhalten bleibt. Ohne Gewähr: Die Kaffeekasse ist ein Hobbyprojekt, für Fehler bei Beträgen wird nicht gehaftet.
 
-Mitgelieferte Schriften: **Inter** (The Inter Project Authors) und **Allerta Stencil** (Matt McInerney), beide unter der SIL Open Font License 1.1 – Lizenztexte in `static/fonts`.
+Mitgelieferte Schriften: **Inter** (The Inter Project Authors), **Allerta Stencil** (Matt McInerney), **Caveat** (Impallari Type) und **EB Garamond** (Georg Duffner, Octavio Pardo), alle unter der SIL Open Font License 1.1 – Lizenztexte in `static/fonts`.
 
 Umgesetzt von **Niklas** mit **Claude** · Ideen von **Benedikt** und **Daniel**.

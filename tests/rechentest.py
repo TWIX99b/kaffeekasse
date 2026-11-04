@@ -300,6 +300,21 @@ s, j = adm.req("PUT", "/api/einstellungen", {"stil": "gibtsnicht"})
 ok(s == 400, "Unbekanntes Design wird abgelehnt")
 ok(Client().req("GET", "/api/me")[1]["datenschutzKontakt"] == "Max Mustermann, App. 12345", "Datenschutz-Kontakt auch ohne Anmeldung lesbar")
 
+# Zurücklagern: Kühlschrank → Lager derselben Halle
+vor = db.execute("SELECT menge, lager FROM bestand WHERE produkt_id=? AND shop_id=?", (cola, h2)).fetchone()
+adm.req("POST", f"/api/produkte/{cola}/eingang", {"shop": h2, "menge": 5, "ek": "0,60", "ort": "kuehlschrank"})
+s, j = adm.req("POST", f"/api/produkte/{cola}/zuruecklagern", {"shop": h2, "menge": 4})
+nach = db.execute("SELECT menge, lager FROM bestand WHERE produkt_id=? AND shop_id=?", (cola, h2)).fetchone()
+ok(s == 200 and tuple(nach) == (vor[0] + 5 - 4, vor[1] + 4), f"Zurücklagern 4 Stück: Kühlschrank/Lager {tuple(vor)} → {tuple(nach)}")
+s, j = adm.req("POST", f"/api/produkte/{cola}/zuruecklagern", {"shop": h2, "menge": nach[0] + 1})
+ok(s == 409, f"Mehr zurücklagern als im Kühlschrank wird abgelehnt ({s})")
+s, j = adm.req("POST", f"/api/produkte/{cola}/zuruecklagern", {"shop": h2, "menge": 0})
+ok(s == 400, f"Menge 0 wird abgelehnt ({s})")
+lb = db.execute("SELECT art, menge, ort FROM lagerbuch WHERE shop_id=? ORDER BY id DESC LIMIT 1", (h2,)).fetchone()
+ok(tuple(lb) == ("Zurücklagern", 4, "rueckumlagerung"), f"Lagerbuch-Eintrag {tuple(lb)}")
+kz2 = adm.req("GET", f"/api/kennzahlen?von=0&shop={h2}")[1]
+ok(kz2["schwund"]["wert"] == 0, "Zurücklagern zählt nicht als Schwund")
+
 # Zurücksetzen: eigenes Guthaben?
 adm.req("POST", f"/api/konten/{sab}/buchen", {"art": "auf", "betrag": "1"})
 me_id = db.execute("SELECT id FROM konten WHERE nummer='10000001'").fetchone()[0]

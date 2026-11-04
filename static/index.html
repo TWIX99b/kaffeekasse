@@ -240,6 +240,7 @@
       <div class="zeitraum" data-zr></div>
       <div class="kpis" id="kasseKpis"></div>
       <div class="toolbar">
+        <div class="seg" id="kAnsicht" role="group" aria-label="Ansicht"><button type="button" data-a="buch" class="active">Buch</button><button type="button" data-a="liste">Liste</button></div>
         <input id="kSuche" class="field such" type="search" placeholder="Zweck, Beleg, Mitglied oder Kategorie suchen">
         <select id="kSort" class="field sortwahl" aria-label="Sortieren">
           <option value="neu">Neueste zuerst</option>
@@ -254,6 +255,7 @@
       </div>
       <div class="filterzeile"><div class="cats" id="kFilter"></div><span class="muted small num" id="kAnzahl"></span></div>
       <div id="kListe"></div>
+      <div id="kBuch" hidden></div>
     </div>
 
     <!-- Shops (Administrator) -->

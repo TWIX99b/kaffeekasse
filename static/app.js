@@ -228,6 +228,7 @@ function showView(id){
   $("#fusszeile").hidden = false;
   $$(".view").forEach(v => v.classList.remove("active"));
   $("#view-" + id).classList.add("active");
+  document.documentElement.dataset.ansicht = id;   // z. B. für ruhigeren Hintergrund in der Verwaltung
   window.scrollTo(0,0);
 }
 
@@ -1014,6 +1015,7 @@ function renderProdTable(){
     const e = [];
     if (sKat !== "__nicht"){
       e.push(["↑", "Kühlschrank auffüllen (aus dem Lager)", () => auffuellenDialog(p, einShop)]);
+      e.push(["↓", "Ins Lager zurücklegen (aus dem Kühlschrank)", () => zuruecklagernDialog(p, einShop)]);
       e.push(["+", "Wareneingang buchen", () => eingangDialog(p, einShop)]);
     }
     e.push(["✎", "Bearbeiten (Name, Preise, Bild, Shops)", () => prodDialog(p)]);
@@ -1217,6 +1219,51 @@ function auffuellenDialog(p, sid){
   };
 }
 
+/* Platz im Kühlschrank schaffen: zurück ins Lager derselben Halle */
+function zuruecklagernDialog(p, sid){
+  sid = sid || (vShop !== "alle" ? vShop : null);
+  openModal(`<h2>Ins Lager zurücklegen</h2>
+    <p class="muted" style="margin:6px 0 14px">${esc(p.name)} – aus dem Kühlschrank zurück ins Lager, z. B. um Platz für Neues zu schaffen.</p>
+    <div class="stack">
+      ${shopFeld("zlShop", sid, s => gefuehrtIn(p, s))}
+      <div class="umlager">
+        <div><span class="small muted">❄ Kühlschrank</span><b class="num" id="zlKuehl">–</b></div>
+        <div class="pfeil">→</div>
+        <div><span class="small muted">▦ Lager</span><b class="num" id="zlLager">–</b></div>
+      </div>
+      <div><label class="label" for="zlMenge">Menge (Stück)</label><input id="zlMenge" class="field num" type="number" min="1" step="1" inputmode="numeric"></div>
+      <div class="row" id="zlSchnell"></div>
+      <p class="small" id="zlInfo" style="margin:0"></p>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="zlAb">Abbrechen</button>
+      <button class="btn btn-primary" id="zlOk">Ins Lager legen</button></div>`);
+  const shopWahl = () => +($("#zlShop") || {}).value || sid;
+  const info = () => {
+    const s = shopWahl(), lg = lagerIn(p, s) || 0, k = Math.max(bestandIn(p, s) || 0, 0), m = Math.min(parseInt($("#zlMenge").value) || 0, 99999);
+    $("#zlKuehl").textContent = m > 0 ? `${k} → ${k - m}` : k;
+    $("#zlLager").textContent = m > 0 ? `${lg} → ${lg + m}` : lg;
+    $("#zlInfo").innerHTML = !k ? `<span style="color:var(--orange-text)">Im Kühlschrank ist nichts davon.</span>`
+      : m > k ? `<span style="color:var(--red-text)">Im Kühlschrank sind nur ${k} Stück.</span>` : "";
+    $("#zlOk").disabled = !k || !(m > 0) || m > k;
+    $("#zlSchnell").innerHTML = k ? [6,12,24].filter(n => n < k).map(n => `<button class="btn btn-sm" data-n="${n}">${n}</button>`).join("")
+      + `<button class="btn btn-sm" data-n="${k}">Alles (${k})</button>` : "";
+    $$("#zlSchnell [data-n]").forEach(b => b.onclick = () => { $("#zlMenge").value = b.dataset.n; info(); });
+  };
+  $("#zlMenge").addEventListener("input", info);
+  if ($("#zlShop")) $("#zlShop").addEventListener("change", info);
+  info();
+  setTimeout(() => $("#zlMenge").focus(), 60);
+  $("#zlAb").onclick = closeModal;
+  $("#zlOk").onclick = async () => {
+    const menge = parseInt($("#zlMenge").value);
+    busy($("#zlOk"), true);
+    const r = await tu("POST", `/api/produkte/${p.id}/zuruecklagern`, {shop:shopWahl(), menge});
+    busy($("#zlOk"), false);
+    if (r){ closeModal(); aktualisieren(); }
+  };
+}
+
 function inventurWahl(){
   openModal(`<h2>Inventur</h2><p class="muted" style="margin:6px 0 14px">Was wird gezählt?</p>
     <div class="stack">${ortWahl("ivOrt", "kuehlschrank")}</div>
@@ -1274,7 +1321,8 @@ function inventurDialog(sid, ort = "kuehlschrank"){
   };
 }
 
-const ORT_TEXT = {kuehlschrank:"Kühlschrank", lager:"Lager", umlagerung:"Lager → Kühlschrank"};
+const ORT_TEXT = {kuehlschrank:"Kühlschrank", lager:"Lager", umlagerung:"Lager → Kühlschrank", rueckumlagerung:"Kühlschrank → Lager"};
+const UMLAGERUNG = ["Auffüllen", "Zurücklagern"];
 async function lagerDialog(p){
   const ids = vShopIds();
   const zeilen = await tu("GET", `/api/lagerbuch?von=0&produkt=${p.id}` + shopParam());
@@ -1284,8 +1332,8 @@ async function lagerDialog(p){
   openModal(`<h2>Lagerbewegungen</h2><p class="muted" style="margin:6px 0 10px">${esc(p.name)} · Wareneingänge, Auffüllen und Inventur. Verkäufe stehen unter „Verkäufe“.</p>
     ${stand ? `<p class="small" style="margin:0 0 12px">${stand}</p>` : ""}
     ${zeilen.length ? `<table>${zeilen.map(z => `<tr><td class="small muted num" style="white-space:nowrap">${dt(z.zeit)}</td>
-      <td class="small">${esc(z.art)} · ${esc(ORT_TEXT[z.ort] || z.ort)}${ids.length > 1 ? " · " + esc(shopName(z.shop_id)) : ""}<br><span class="muted">${esc(z.von)}${z.notiz && z.art !== "Auffüllen" ? " · " + esc(z.notiz) : ""}${z.ek != null && z.art === "Eingang" ? " · EK " + EUR(z.ek) : ""}</span></td>
-      <td class="t-right num" style="color:${z.art === "Auffüllen" ? "var(--muted)" : z.menge < 0 ? "var(--red-text)" : "var(--green-text)"}">${z.art === "Auffüllen" ? "" : z.menge > 0 ? "+" : ""}${z.menge}</td></tr>`).join("")}</table>`
+      <td class="small">${esc(z.art)} · ${esc(ORT_TEXT[z.ort] || z.ort)}${ids.length > 1 ? " · " + esc(shopName(z.shop_id)) : ""}<br><span class="muted">${esc(z.von)}${z.notiz && !UMLAGERUNG.includes(z.art) ? " · " + esc(z.notiz) : ""}${z.ek != null && z.art === "Eingang" ? " · EK " + EUR(z.ek) : ""}</span></td>
+      <td class="t-right num" style="color:${UMLAGERUNG.includes(z.art) ? "var(--muted)" : z.menge < 0 ? "var(--red-text)" : "var(--green-text)"}">${UMLAGERUNG.includes(z.art) ? "" : z.menge > 0 ? "+" : ""}${z.menge}</td></tr>`).join("")}</table>`
       : `<div class="empty">Noch keine Lagerbewegungen.</div>`}
     <div class="modal-actions"><button class="btn btn-primary" id="lgZu">Schließen</button></div>`);
   $("#lgZu").onclick = closeModal;
@@ -2149,6 +2197,12 @@ function renderKasse(){
     Aufladung:k.eintraege.filter(e => e.art === "Aufladung").length, Auszahlung:k.eintraege.filter(e => e.art === "Auszahlung").length, pruef:k.pruefungen.length};
   chips("#kFilter", K_FILTER.filter(([f]) => f === "alle" || zaehl[f]).map(([f,l]) => [f, l, zaehl[f]]), kFilter, f => { kFilter = f; renderKasse(); });
   const q = ($("#kSuche").value || "").toLowerCase().trim();
+  const buch = kAnsicht === "buch";
+  $$("#kAnsicht [data-a]").forEach(b => b.classList.toggle("active", b.dataset.a === kAnsicht));
+  $("#kSort").hidden = buch;
+  $("#kListe").hidden = buch;
+  $("#kBuch").hidden = !buch;
+  if (buch){ kassenbuchZeichnen(k, q); return; }
   if (kFilter === "pruef"){
     const liste = k.pruefungen.filter(p => !q || (p.pruefer + " " + p.pruefer2 + " " + p.bemerkung).toLowerCase().includes(q));
     $("#kAnzahl").textContent = liste.length + " Prüfungen";
@@ -2193,6 +2247,158 @@ function renderKasse(){
 }
 $("#kSuche").addEventListener("input", renderKasse);
 $("#kSort").onchange = renderKasse;
+$$("#kAnsicht [data-a]").forEach(b => b.onclick = () => {
+  kAnsicht = b.dataset.a; kbSeite = null;
+  try { localStorage.setItem("kaffeekasse.kasseAnsicht", kAnsicht); } catch (_) {}
+  renderKasse();
+});
+
+/* ---------- Kassenbuch als Buch: liniertes Papier, Handschrift, Übertrag je Seite, Prüfstempel ---------- */
+let kAnsicht = (() => { try { return localStorage.getItem("kaffeekasse.kasseAnsicht") === "liste" ? "liste" : "buch"; } catch (_) { return "buch"; } })();
+let kbSeite = null;            // Index der Doppelseite (Computer) bzw. Seite (Handy); null = neueste
+let kbDaten = null;            // erkennt neu geladene Daten → wieder auf die neueste Seite
+const KB_HANDY = matchMedia("(max-width: 900px)");
+KB_HANDY.addEventListener("change", () => { kbSeite = null; if (aktTab === "t-kasse" && kAnsicht === "buch") renderKasse(); });
+const KB_BELEG = {Aufladung:"A", Auszahlung:"Z", Ausgabe:"B", Einlage:"E", Kassendifferenz:"K", Storno:"S"};
+const kbBetrag = c => Math.abs(c).toLocaleString("de-DE", {minimumFractionDigits:2, maximumFractionDigits:2});
+const kbTag = ts => new Date(ts).toLocaleDateString("de-DE", {day:"2-digit", month:"2-digit"}).replace(/\.?$/, ".");
+const kbKurzname = n => { const t = String(n || "").trim().split(/\s+/); return t.length > 1 ? `${t[0][0]}. ${t.slice(1).join(" ")}` : t.join(""); };
+function kbText(e){
+  if (e.art === "Aufladung" || e.art === "Auszahlung"){
+    const [name, ...rest] = String(e.zweck || "").split(" · ");
+    return [`${e.art} ${kbKurzname(name)}`.trim(), ...rest].join(" · ");
+  }
+  if (e.art === "Kassendifferenz") return "Kassendifferenz lt. Prüfung";
+  if (e.art === "Ausgabe" || e.art === "Einlage")
+    return e.kategorie && e.kategorie !== "Sonstiges" && !(e.zweck || "").toLowerCase().includes(e.kategorie.toLowerCase())
+      ? `${e.kategorie} – ${e.zweck}` : (e.zweck || e.art);
+  return e.zweck || e.art;
+}
+function kbMonatWechseln(schritt){
+  const [v] = zeitraum();
+  const ziel = new Date(v.getFullYear(), v.getMonth() + schritt, 1), heute = new Date();
+  if (ziel > heute) return;
+  if (ziel.getFullYear() === heute.getFullYear() && ziel.getMonth() === heute.getMonth()) ZR = {art:"monat", von:null, bis:null};
+  else ZR = {art:"frei", von:isoTag(ziel), bis:isoTag(new Date(ziel.getFullYear(), ziel.getMonth() + 1, 0))};
+  kbSeite = null; zeitraumZeichnen(); ladeTab();
+}
+function kassenbuchZeichnen(k, q){
+  const handy = KB_HANDY.matches;
+  const passt = e => kFilter === "alle" || (kFilter === "ein" ? e.betrag > 0 : kFilter === "aus" ? e.betrag < 0
+    : kFilter === "pruef" ? !!e.pruefungId : e.art === kFilter);
+  const posten = k.eintraege.filter(passt)
+    .filter(e => !q || [e.art, e.kategorie, e.zweck, e.beleg, e.von].join(" ").toLowerCase().includes(q))
+    .map(e => ({typ:"b", zeit:e.zeit, ord:e.id, e}));
+  if (["alle","pruef"].includes(kFilter) && !q) k.pruefungen.forEach(p => posten.push({typ:"p", zeit:p.zeit, ord:Infinity, p}));
+  posten.sort((a,b) => a.zeit - b.zeit || a.ord - b.ord);
+  // Seiten füllen: Computer 15 Zeilen je Seite, Handy 9 zweizeilige Einträge; ein Stempel braucht 3 bzw. 2 Plätze
+  const PLAETZE = handy ? 9 : 15, STEMPEL = handy ? 2 : 3;
+  const seiten = [];
+  let seite = null, stand = k.anfang;
+  const neueSeite = () => { seite = {posten:[], frei:PLAETZE - 1, uebertrag:stand, ein:0, aus:0, nr:seiten.length + 1}; seiten.push(seite); };
+  neueSeite();
+  for (const x of posten){
+    const bedarf = x.typ === "p" ? STEMPEL : 1;
+    if (bedarf > seite.frei) neueSeite();
+    seite.posten.push(x); seite.frei -= bedarf;
+    if (x.typ === "b"){
+      if (x.e.betrag > 0) seite.ein += x.e.betrag; else seite.aus += -x.e.betrag;
+      stand = x.e.saldo;
+    }
+    seite.ende = stand;
+  }
+  seiten.forEach(s => { if (s.ende === undefined) s.ende = s.uebertrag; });
+  const [zv, zb] = zeitraum();
+  const ende = new Date(zb); ende.setDate(ende.getDate() - 1);
+  const einMonat = zv.getDate() === 1 && zv.getMonth() === ende.getMonth() && zv.getFullYear() === ende.getFullYear();
+  const monatTxt = d => d.toLocaleDateString("de-DE", {month:"long", year:"numeric"});
+  const kopfTxt = einMonat ? monatTxt(zv) : zrText();
+  const vormonat = new Date(zv.getFullYear(), zv.getMonth() - 1, 1).toLocaleDateString("de-DE", {month:"long"});
+  const proAnsicht = handy ? 1 : 2, ansichten = Math.max(1, Math.ceil(seiten.length / proAnsicht));
+  const schluessel = `${zv.getTime()}|${k.eintraege.length}|${k.stand}|${kFilter}|${q}|${handy}`;
+  if (kbDaten !== schluessel){ kbDaten = schluessel; kbSeite = null; }
+  if (kbSeite === null || kbSeite >= ansichten) kbSeite = ansichten - 1;
+  const zeigen = seiten.slice(kbSeite * proAnsicht, kbSeite * proAnsicht + proAnsicht);
+  const lp = k.letztePruefung;
+  const stempel = p => `<button type="button" class="kb-stempel" data-pruef="${p.id}" aria-label="Protokoll der Kassenprüfung #${p.id} öffnen">
+      <span class="kb-st-titel">Kassenprüfung</span>
+      <span class="kb-st-datum">${new Date(p.zeit).toLocaleDateString("de-DE")}</span>
+      <span class="kb-st-werte"><span>Soll<b>${kbBetrag(p.soll)}</b></span><span>Gezählt<b>${kbBetrag(p.ist)}</b></span>
+        <span>Differenz<b>${p.differenz ? (p.differenz < 0 ? "−" : "+") + kbBetrag(p.differenz) : "stimmt"}</b></span></span>
+      <span class="kb-st-sign"><span><i>${esc(p.pruefer)}</i>Kassenführer</span><span><i>${esc(p.pruefer2 || "—")}</i>2. Prüfer</span></span>
+    </button>`;
+  const zeile = x => {
+    if (x.typ === "p") return stempel(x.p);
+    const e = x.e, beleg = e.beleg || `${KB_BELEG[e.art] || "X"}-${e.id}`;
+    const ein = e.betrag > 0 ? kbBetrag(e.betrag) : "", aus = e.betrag < 0 ? kbBetrag(e.betrag) : "";
+    const kl = `kb-z${e.storniert ? " kb-storniert" : ""}${e.pruefungId ? " kb-klick" : ""}`;
+    const attr = e.pruefungId ? ` data-pruef="${e.pruefungId}" role="button" tabindex="0"` : "";
+    const titel = esc(`${kbText(e)} · gebucht von ${e.von} · ${dt(e.zeit)}`);
+    return handy
+      ? `<div class="${kl}"${attr} title="${titel}"><div class="kb-z1"><span class="kb-txt"><span class="kb-dat">${kbTag(e.zeit)}</span> ${esc(kbText(e))}</span>
+          <span class="kb-betrag ${e.betrag < 0 ? "kb-rot" : ""}">${e.betrag < 0 ? "−" : "+"}${kbBetrag(e.betrag)}</span></div>
+          <div class="kb-z2"><span>Beleg ${esc(beleg)}</span><span>Bestand <b>${kbBetrag(e.saldo)}</b></span></div></div>`
+      : `<div class="${kl} kb-raster"${attr} title="${titel}"><span>${kbTag(e.zeit)}</span><span class="kb-beleg">${esc(beleg)}</span>
+          <span class="kb-txt">${esc(kbText(e))}</span><span class="kb-r">${ein}</span><span class="kb-r kb-rot">${aus}</span><span class="kb-r kb-fett">${kbBetrag(e.saldo)}</span></div>`;
+  };
+  const uebertrag = s => {
+    const txt = s.nr === 1 ? (einMonat ? `Übertrag aus ${vormonat}` : "Übertrag") : `Übertrag von S. ${s.nr - 1}`;
+    return handy
+      ? `<div class="kb-z kb-ueb"><div class="kb-z1"><span class="kb-txt">${txt}</span><span></span></div><div class="kb-z2"><span></span><span>Bestand <b>${kbBetrag(s.uebertrag)}</b></span></div></div>`
+      : `<div class="kb-z kb-raster kb-ueb"><span></span><span></span><span class="kb-txt">${txt}</span><span></span><span></span><span class="kb-r kb-fett">${kbBetrag(s.uebertrag)}</span></div>`;
+  };
+  const leer = n => Array.from({length:Math.max(0, n)}, () => `<div class="kb-z kb-leer" aria-hidden="true"></div>`).join("");
+  const kopfSpalten = `<div class="kb-kopfzeile kb-raster"><span>Datum</span><span>Beleg</span><span>Buchungstext</span><span class="kb-r">Einnahme</span><span class="kb-r">Ausgabe</span><span class="kb-r">Bestand</span></div>`;
+  const blatt = (s, links) => `<section class="kb-seite ${links ? "kb-links" : "kb-rechts"}" aria-label="Seite ${s.nr}">
+      ${!links ? `<div class="kb-band" aria-hidden="true"></div>` : ""}
+      <div class="kb-kopf">
+        ${links || handy ? `<div><div class="kb-titel">Kassenbuch</div><div class="kb-unter">${esc(D.einstellungen.shopName)} · Bargeld</div></div>`
+          : `<div class="kb-titel kb-titel-klein">Fortsetzung</div>`}
+        <div class="kb-monat">${esc(kopfTxt)}</div>
+      </div>
+      ${handy ? `<div class="kb-kurz"><div><span>Kassenstand</span><b>${EUR(k.stand)}</b></div>
+          <div><span>Letzte Prüfung</span><b>${lp ? kbTag(lp.zeit) + (lp.differenz ? " · " + (lp.differenz < 0 ? "−" : "+") + kbBetrag(lp.differenz) : " · stimmt") : "noch keine"}</b></div></div>
+        <div class="kb-kopfzeile kb-kopf-handy"><span>Datum · Buchungstext</span><span>Betrag · Bestand</span></div>` : kopfSpalten}
+      <div class="kb-linien">${uebertrag(s)}${s.posten.map(zeile).join("")}${leer(s.frei)}</div>
+      <div class="kb-fuss ${handy ? "" : "kb-raster"}">
+        ${handy ? `<span class="kb-kursiv">Seite ${s.nr} · <span class="kb-blau">+${kbBetrag(s.ein)}</span> · <span class="kb-rot">−${kbBetrag(s.aus)}</span></span>
+            <span class="kb-hand kb-fett kb-doppelt">${kbBetrag(s.ende)}</span>`
+          : `<span class="kb-kursiv">Summe Seite / ${s.nr === seiten.length ? "Bestand" : "Übertrag"}</span>
+            <span class="kb-r kb-hand kb-blau">${kbBetrag(s.ein)}</span><span class="kb-r kb-hand kb-rot">${kbBetrag(s.aus)}</span>
+            <span class="kb-r kb-hand kb-fett kb-doppelt">${kbBetrag(s.ende)}</span>`}
+      </div>
+      ${handy ? "" : `<div class="kb-seitennr">— ${s.nr} —</div>`}
+    </section>`;
+  const leereSeite = `<section class="kb-seite kb-rechts kb-unbeschrieben" aria-hidden="true"><div class="kb-band"></div></section>`;
+  const heute = new Date();
+  const naechsterMonatMoeglich = new Date(zv.getFullYear(), zv.getMonth() + 1, 1) <= heute;
+  const mName = s => new Date(zv.getFullYear(), zv.getMonth() + s, 1).toLocaleDateString("de-DE", {month:"long"});
+  $("#kBuch").innerHTML = `<div class="kb-tisch">
+      <div class="kb-buch ${handy ? "kb-handy" : ""}">
+        ${zeigen.map((s, i) => blatt(s, !handy && i === 0)).join("")}${!handy && zeigen.length === 1 ? leereSeite : ""}
+      </div>
+      <nav class="kb-nav" aria-label="Blättern">
+        <button type="button" class="kb-knopf" data-kb="monat-1">‹ ${esc(mName(-1))}</button>
+        <button type="button" class="kb-knopf" data-kb="seite-1" ${kbSeite <= 0 ? "disabled" : ""} aria-label="Vorige Seite">‹ S.</button>
+        <span class="kb-stand">Kassenstand <b>${EUR(k.stand)}</b>${lp ? ` · letzte Prüfung ${kbTag(lp.zeit)}` : ""}<br>
+          <span class="small">Seite ${zeigen.map(s => s.nr).join("–")} von ${seiten.length}</span></span>
+        <button type="button" class="kb-knopf" data-kb="seite+1" ${kbSeite >= ansichten - 1 ? "disabled" : ""} aria-label="Nächste Seite">S. ›</button>
+        <button type="button" class="kb-knopf" data-kb="monat+1" ${naechsterMonatMoeglich ? "" : "disabled"}>${esc(mName(1))} ›</button>
+      </nav>
+      <p class="kb-hinweis small muted">Stornieren und Kontoverlauf: in der Ansicht „Liste“. Stempel oder Differenzzeile antippen öffnet das Prüfprotokoll.</p>
+    </div>`;
+  $$("#kBuch [data-kb]").forEach(b => b.onclick = () => {
+    const a = b.dataset.kb;
+    if (a === "monat-1") kbMonatWechseln(-1);
+    else if (a === "monat+1") kbMonatWechseln(1);
+    else { kbSeite += a === "seite+1" ? 1 : -1; kassenbuchZeichnen(k, q); }
+  });
+  $$("#kBuch [data-pruef]").forEach(el => {
+    const auf = () => protokollDialog(+el.dataset.pruef);
+    el.onclick = auf;
+    if (el.getAttribute("role") === "button") el.onkeydown = ev => { if (ev.key === "Enter" || ev.key === " "){ ev.preventDefault(); auf(); } };
+  });
+}
 $("#kAusgabeBtn").onclick = () => kasseBuchenDialog("ausgabe");
 $("#kEinlageBtn").onclick = () => kasseBuchenDialog("einlage");
 $("#kPruefungBtn").onclick = () => pruefungDialog();
